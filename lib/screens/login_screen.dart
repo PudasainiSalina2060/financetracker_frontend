@@ -13,88 +13,92 @@ class LoginScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Top black section with app name
-            Container(
-              height: 265,
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(40),
-                  bottomRight: Radius.circular(40),
+            Stack(
+              children: [
+                Container(
+                  height: 280,
+                  width: double.infinity,
+                  color: Colors.black,
                 ),
-              ),
-              child: Center(
-                child: RichText(
-                  textAlign: TextAlign.center,
-                  text: TextSpan(
-                    children: [
-                      TextSpan(
-                        text: "Smart\n",
-                        style: GoogleFonts.adventPro(
-                          color: Colors.white,
-                          fontSize: 48,
-                          fontWeight: FontWeight.w300,
-                        ),
+                Positioned(
+                  bottom: -1,
+                  child: Container(
+                    height: 80,
+                    width: MediaQuery.of(context).size.width,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(80), 
                       ),
-                      TextSpan(
-                        text: "Budget",
-                        style: GoogleFonts.inspiration(
-                          color: Colors.white,
-                          fontSize: 48,
-                          fontWeight: FontWeight.w300,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
+                Positioned.fill(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 40),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            "Smart",
+                            style: GoogleFonts.adventPro(
+                              color: Colors.white,
+                              fontSize: 55,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 20),
+                            child: Text(
+                              "Budget",
+                              style: GoogleFonts.inspiration(
+                                color: Colors.white,
+                                fontSize: 45,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
 
-            const SizedBox(height: 30),
-
-            // Login heading
+            const SizedBox(height: 10),
             Center(
               child: Text(
                 "Login",
                 style: GoogleFonts.inika(
-                  fontSize: 26,
+                  fontSize: 32,
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
                 ),
               ),
             ),
-
-            const SizedBox(height: 30),
-
-            // Email label + black input box
+            const SizedBox(height: 20),
+                      // Email Input
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 30),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "Email",
-                    style: GoogleFonts.inika(
-                      fontSize: 18,
-                      color: Colors.black,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  Text("Email", style: GoogleFonts.inika(fontSize: 18, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Container(
-                    height: 52,
+                    height: 55,
                     decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(30),
+                      color: const Color(0xFF121212),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    alignment: Alignment.centerLeft,
                     child: const TextField(
                       style: TextStyle(color: Colors.white),
-                      cursorColor: Colors.white,
                       decoration: InputDecoration(
-                        isDense: true,
                         border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                       ),
                     ),
                   ),
@@ -104,44 +108,33 @@ class LoginScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // Password label + black input box
+            // Password Input
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 30),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "Password",
-                    style: GoogleFonts.inika(
-                      fontSize: 18,
-                      color: Colors.black,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  Text("Password", style: GoogleFonts.inika(fontSize: 18, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Container(
-                    height: 52,
+                    height: 55,
                     decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(30),
+                      color: const Color(0xFF121212),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    alignment: Alignment.centerLeft,
                     child: const TextField(
-                      obscureText: true,//Password: Masks characters (●●●)
+                      obscureText: true,
                       style: TextStyle(color: Colors.white),
-                      cursorColor: Colors.white,
                       decoration: InputDecoration(
-                        isDense: true,
                         border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 10),
+            const SizedBox(height: 5), // Tightens the link to the box
 
             // Forgot password link under the password field
             Padding(
@@ -162,21 +155,21 @@ class LoginScreen extends StatelessWidget {
 
             // Login button (black)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 30),
               child: SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 55,
                 child: ElevatedButton(
                   onPressed: () {},
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
+                      borderRadius: BorderRadius.circular(20), // Matches input fields
                     ),
                   ),
                   child: Text(
                     "Login",
-                    style: GoogleFonts.inika(fontSize: 18, color: Colors.white),
+                    style: GoogleFonts.inika(fontSize: 20, color: Colors.white),
                   ),
                 ),
               ),
@@ -202,6 +195,7 @@ class LoginScreen extends StatelessWidget {
                     style: GoogleFonts.inika(
                       fontSize: 18, 
                       color: Colors.black),
+                      
                   ),
                 ),
               ],
