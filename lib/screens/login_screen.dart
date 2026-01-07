@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'home_screen.dart';
+// Ensure you have this file created or rename it to match your signup file
+import 'sign_up_screen.dart'; 
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -28,7 +31,7 @@ class LoginScreen extends StatelessWidget {
                     decoration: const BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(80), 
+                        topLeft: Radius.circular(80),
                       ),
                     ),
                   ),
@@ -80,13 +83,16 @@ class LoginScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-                      // Email Input
+            
+            // Email Input
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 30),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Email", style: GoogleFonts.inika(fontSize: 18, fontWeight: FontWeight.w600)),
+                  Text("Email",
+                      style: GoogleFonts.inika(
+                          fontSize: 18, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Container(
                     height: 55,
@@ -98,7 +104,8 @@ class LoginScreen extends StatelessWidget {
                       style: TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                       ),
                     ),
                   ),
@@ -114,7 +121,9 @@ class LoginScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Password", style: GoogleFonts.inika(fontSize: 18, fontWeight: FontWeight.w600)),
+                  Text("Password",
+                      style: GoogleFonts.inika(
+                          fontSize: 18, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Container(
                     height: 55,
@@ -127,16 +136,17 @@ class LoginScreen extends StatelessWidget {
                       style: TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 5), // Tightens the link to the box
+            const SizedBox(height: 5),
 
-            // Forgot password link under the password field
+            // Forgot password link
             Padding(
               padding: const EdgeInsets.only(right: 32),
               child: Align(
@@ -153,18 +163,24 @@ class LoginScreen extends StatelessWidget {
 
             const SizedBox(height: 10),
 
-            // Login button (black)
+            // Login button
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 30),
               child: SizedBox(
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const HomeScreen()),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20), // Matches input fields
+                      borderRadius: BorderRadius.circular(20),
                     ),
                   ),
                   child: Text(
@@ -181,21 +197,28 @@ class LoginScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text("Don’t have an account? ",
-                style: GoogleFonts.inika(
-                  fontSize: 18,
-                  color: Colors.black,
-                  fontWeight: FontWeight.w400,
-
-                )),
+                Text(
+                  "Don’t have an account? ",
+                  style: GoogleFonts.inika(
+                    fontSize: 18,
+                    color: Colors.black,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const SignUpScreen()),
+                    );
+                  },
                   child: Text(
                     "Sign Up",
                     style: GoogleFonts.inika(
-                      fontSize: 18, 
-                      color: Colors.black),
-                      
+                      fontSize: 18,
+                      color: Colors.black,
+                    ),
                   ),
                 ),
               ],
