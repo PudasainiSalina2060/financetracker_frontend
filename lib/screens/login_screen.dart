@@ -1,227 +1,222 @@
+import 'package:financetracker_frontend/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'home_screen.dart';
-// Ensure you have this file created or rename it to match your signup file
-import 'sign_up_screen.dart'; 
 
-class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key});
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({Key? key}) : super(key: key);
 
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SingleChildScrollView(
+      backgroundColor: Colors.teal[600], 
+      body: SafeArea(
+        bottom: false, // Allows the white container to go to the bottom
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top black section with app name
-            Stack(
-              children: [
-                Container(
-                  height: 280,
-                  width: double.infinity,
-                  color: Colors.black,
-                ),
-                Positioned(
-                  bottom: -1,
-                  child: Container(
-                    height: 80,
-                    width: MediaQuery.of(context).size.width,
-                    decoration: const BoxDecoration(
+            //SMART BUDGET LOGO section
+            Padding(
+              padding: const EdgeInsets.only(top: 30.0, bottom: 30.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    "Smart",
+                    style: GoogleFonts.adventPro(
                       color: Colors.white,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(80),
-                      ),
+                      fontSize: 55,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
+                  Text(
+                    "Budget",
+                    style: GoogleFonts.inspiration(
+                      color: Colors.white,
+                      fontSize: 45,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Bottom white card
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(60), // Only top-left is curved here
+                  ),
                 ),
-                Positioned.fill(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 40),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            "Smart",
-                            style: GoogleFonts.adventPro(
-                              color: Colors.white,
-                              fontSize: 55,
-                              fontWeight: FontWeight.w400,
+                // Using SingleChildScrollView  to prevent errors when the keyboard pops up
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 40.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start, // Aligns items to the left
+                    children: [
+                      // "Login" Title
+                      Center(
+                        child: Text(
+                          'Login',
+                          style: GoogleFonts.inika(
+                            fontSize: 32,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      
+                      SizedBox(height: 30),
+
+                      //EMAIL Text field
+                      Text(
+                        'Email',
+                        style: GoogleFonts.inika(fontSize: 16, color: Colors.black87),
+                      ),
+                      SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.teal[100]!.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 20.0),
+                          child: TextField(
+                            decoration: InputDecoration(
+                              border: InputBorder.none,
+                              hintText: 'username@gmail.com', 
+                              hintStyle: TextStyle(color: Colors.black54),
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 20),
+                        ),
+                      ),
+                      
+                      SizedBox(height: 20),
+
+                      // PASSWORD Text field
+                      Text(
+                        'Password',
+                        style: GoogleFonts.inika(fontSize: 16, color: Colors.black87),
+                      ),
+                      SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.teal[100]!.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 20.0),
+                          child: TextField(
+                            obscureText: true, // Hides the password
+                            obscuringCharacter: '*', // Makes it show *** while typing password
+                            decoration: InputDecoration(
+                              border: InputBorder.none,
+                              // No hint text requested here, keeping it clean
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(height: 8),
+
+                      // Forgot Password button text
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          'Forgot Password?',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(height: 30),
+
+                      // LOGIN button
+                      Center(
+                        child: SizedBox(
+                          width: 300, 
+                          child: ElevatedButton(
+                            onPressed: () {
+                               Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const HomeScreen(),
+                                  ),
+                                );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal[600],
+                              padding: EdgeInsets.all(20),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              elevation: 0,
+                            ),
                             child: Text(
-                              "Budget",
-                              style: GoogleFonts.inspiration(
+                              'Login',
+                              style: GoogleFonts.inika(
                                 color: Colors.white,
-                                fontSize: 45,
+                                fontSize: 18,
                               ),
                             ),
                           ),
+                        ),
+                      ),
+
+                      SizedBox(height: 30),
+
+                      // line DIVIDER for ("or") 
+                      Row(
+                        children: [
+                          Expanded(child: Divider(color: Colors.grey[400], thickness: 1)),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                            child: Text('or', style: TextStyle(color: Colors.grey[600])),
+                          ),
+                          Expanded(child: Divider(color: Colors.grey[400], thickness: 1)),
                         ],
                       ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
 
-            const SizedBox(height: 10),
-            Center(
-              child: Text(
-                "Login",
-                style: GoogleFonts.inika(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            
-            // Email Input
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Email",
-                      style: GoogleFonts.inika(
-                          fontSize: 18, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Container(
-                    height: 55,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF121212),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const TextField(
-                      style: TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                      SizedBox(height: 30),
+
+                      // --- CONTINUE WITH GOOGLE BUTTON ---
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            print("Google Login Clicked");
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.grey[300], // Ripple color
+                            padding: EdgeInsets.all(15),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: Colors.grey[300]!), // Grey outline
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            'Continue with Google',
+                            style: GoogleFonts.inika(
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
 
-            const SizedBox(height: 20),
-
-            // Password Input
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Password",
-                      style: GoogleFonts.inika(
-                          fontSize: 18, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Container(
-                    height: 55,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF121212),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const TextField(
-                      obscureText: true,
-                      style: TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 5),
-
-            // Forgot password link
-            Padding(
-              padding: const EdgeInsets.only(right: 32),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {},
-                  child: Text(
-                    "Forgot Password?",
-                    style: GoogleFonts.inika(color: Colors.black),
+                    ],
                   ),
                 ),
               ),
-            ),
-
-            const SizedBox(height: 10),
-
-            // Login button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30),
-              child: SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const HomeScreen()),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: Text(
-                    "Login",
-                    style: GoogleFonts.inika(fontSize: 20, color: Colors.white),
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 30),
-
-            // Sign up prompt
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "Don’t have an account? ",
-                  style: GoogleFonts.inika(
-                    fontSize: 18,
-                    color: Colors.black,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const SignUpScreen()),
-                    );
-                  },
-                  child: Text(
-                    "Sign Up",
-                    style: GoogleFonts.inika(
-                      fontSize: 18,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
-              ],
             ),
           ],
         ),
