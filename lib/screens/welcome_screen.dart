@@ -1,3 +1,4 @@
+import 'package:financetracker_frontend/screens/authLanding_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -123,23 +124,34 @@ class WelcomeScreen extends StatelessWidget {
                 //Get Started Button
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 80.0),
-                  child: Container(
-                    padding: EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.6), // Semi-transparent look
-                      borderRadius: BorderRadius.circular(30), // Rounded pill shape
-                    ),
-                    child: Center(
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.6),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        padding: EdgeInsets.all(15),
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AuthLandingScreen(),
+                          ),
+                        );
+                      },
                       child: Text(
-                        'Get Started',
-                        style:  GoogleFonts.inika(
-                          color: Colors.white,
+                        "Get Started",
+                        style: GoogleFonts.inika(
+                          color: Colors.amber[50],
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                  ),
+                  ), 
                 ),
                 
                 SizedBox(height: 40), // Space below the button
