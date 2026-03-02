@@ -1,3 +1,4 @@
+import 'package:financetracker_frontend/screens/addAccount_screen.dart';
 import 'package:financetracker_frontend/screens/addTransaction_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -66,8 +67,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   const Text("Accounts", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                   // CLICKABLE: Add Account text
                   InkWell(
-                    onTap: () => print("Navigate to Add Account Screen"),
-                    child: Text("+ Add account", style: TextStyle(color: Colors.teal[700], fontWeight: FontWeight.w600)),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AddAccountPage()),
+                      );
+                    },
+                    child: Text("+ Add account", style: GoogleFonts.karma(color: Colors.teal[700], fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
