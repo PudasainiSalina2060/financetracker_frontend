@@ -9,6 +9,9 @@ class AddAccountPage extends StatefulWidget {
 }
 
 class _AddAccountPageState extends State<AddAccountPage> {
+
+  //variable to track which one account is selected (Default is Cash)
+  String selectedType = 'Cash';
   
   // Function to show the "Success" popup after saving
   //using simple SnackBar logic
@@ -88,6 +91,7 @@ class _AddAccountPageState extends State<AddAccountPage> {
                 // Balance Input Section
                 Text('Opening Balance', style: GoogleFonts.karma(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 10),
+
                 Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade400),
@@ -121,6 +125,31 @@ class _AddAccountPageState extends State<AddAccountPage> {
                   ),
                 ),
 
+                const SizedBox(height: 30),
+
+                // For Select Account Type Section
+                const SizedBox(height: 10), 
+                Center(
+                  child: Text(
+                    "SELECT ACCOUNT TYPE",
+                    style: GoogleFonts.karma(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[600],
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildCategoryIcon('Cash', Icons.payments_outlined),
+                    _buildCategoryIcon('Bank', Icons.account_balance_outlined),
+                    _buildCategoryIcon('Card', Icons.credit_card_outlined),
+                  ],
+                ),
+                
                 const SizedBox(height: 50),
 
                 // Add Account Button
@@ -161,4 +190,46 @@ class _AddAccountPageState extends State<AddAccountPage> {
       ),
     );
   }
+  Widget _buildCategoryIcon(String title, IconData icon) {
+  // This line checks if the current icon matches what the user selected
+  bool isSelected = selectedType == title;
+
+  return GestureDetector(
+    onTap: () {
+      setState(() {
+        selectedType = title; // This updates the UI when you tap
+      });
+    },
+    child: Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            // If selected, show light teal. If not, show light grey.
+            color: isSelected ? const Color(0xFFE0F2F1) : Colors.grey[100],
+            border: Border.all(
+              color: isSelected ? const Color(0xFF009688) : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          child: Icon(
+            icon,
+            color: isSelected ? const Color(0xFF009688) : Colors.grey[600],
+            size: 30,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          title,
+          style: GoogleFonts.karma(
+            fontSize: 14,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? const Color(0xFF009688) : Colors.grey[600],
+          ),
+        ),
+      ],
+    ),
+  );
+}
 }
