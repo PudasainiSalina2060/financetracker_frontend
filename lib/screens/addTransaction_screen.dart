@@ -72,6 +72,14 @@ void _showSuccessPopup() {
     "Health": Icons.medical_services,
     "Salary": Icons.payments,
     "Entertainment": Icons.movie,
+    "Education": Icons.school,
+    "Bills": Icons.receipt_long,
+    "Fitness": Icons.fitness_center,
+    "Gifts": Icons.card_giftcard,
+    "Savings": Icons.savings,
+    "Utilities": Icons.lightbulb,
+    "Pets": Icons.pets,
+    "Others": Icons.more_horiz,
   };
 
   showModalBottomSheet(
@@ -110,7 +118,7 @@ void _showSuccessPopup() {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text("Add a New Transaction", 
-          style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
+        style: GoogleFonts.karma(fontWeight: FontWeight.bold, color: Colors.black)),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
