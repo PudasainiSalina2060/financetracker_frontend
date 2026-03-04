@@ -1,3 +1,4 @@
+import 'package:financetracker_frontend/screens/accountDetails_screen.dart';
 import 'package:financetracker_frontend/screens/addAccount_screen.dart';
 import 'package:financetracker_frontend/screens/addTransaction_screen.dart';
 import 'package:flutter/material.dart';
@@ -84,9 +85,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    _buildAccountCard("Cash", "20,000", Icons.money_outlined),
-                    _buildAccountCard("Bank", "80,000", Icons.account_balance_outlined),
-                    _buildAccountCard("eSewa", "20,000", Icons.wallet_outlined),
+                    _buildAccountCard("Cash", "20,000", Icons.money_outlined, 1),
+                    _buildAccountCard("Bank", "80,000", Icons.account_balance_outlined, 2),
+                    _buildAccountCard("eSewa", "20,000", Icons.wallet_outlined, 3),
                   ],
                 ),
               ),
@@ -161,11 +162,29 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   //generates the clickable Account Cards (Cash, Bank,..)
-  Widget _buildAccountCard(String title, String amount, IconData icon) {
+  Widget _buildAccountCard(String title, String amount, IconData icon, int id) {
     return Padding(
       padding: const EdgeInsets.only(right: 15),
       child: InkWell(
-        onTap: () => print("Edit $title Account"),
+        onTap: () {
+          //variable to hold the account category,starting with the account name
+          String typeToPass = title;
+          if (title == "eSewa") {
+            //the correct icon (credit card) is highlighted by default
+            typeToPass = "Card"; // maps eSewa to the card category icon
+          }
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:(context)=> EditAccountPage(
+                accountName: title, 
+                balance: amount, 
+                accountId: id,
+                initialType: typeToPass,
+                ),
+              ),
+          );
+        },
         borderRadius: BorderRadius.circular(15),
         child: Container(
           padding: const EdgeInsets.all(15),
