@@ -1,6 +1,8 @@
 import 'package:financetracker_frontend/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:financetracker_frontend/services/auth_service.dart';
+
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({Key? key}) : super(key: key);
@@ -16,6 +18,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final AuthService _authService = AuthService();
 
   @override
   Widget build(BuildContext context) {
@@ -194,17 +197,41 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: () {
+                            onPressed: () async{
                               //checking if all the fields pass the validation : is empty or not
                               if (_formKey.currentState!.validate()) {
-                                print("Validation Passed!");
-                              
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const HomeScreen(),
+
+                                //calling AuthService and waiting for the result
+                                bool success = await _authService.registerUser(
+                                  _nameController.text,
+                                  _emailController.text,
+                                  _phoneController.text,
+                                  _passwordController.text
+                                  );
+
+                                  if (success) {
+                                    //if backend says ok, display a success message
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("Account created successfully!"),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+
+                                    //Move to Home and remove the Signup screen from history
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute( builder: (context) => const HomeScreen()),
+                                );
+                              }else {
+                                //displaying an error in case if email exists or backend fails
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Registration failed. Please try again!"),
+                                    backgroundColor: Colors.red,
                                   ),
                                 );
+                                }
                               }
                               else {
                                 print("Validation Failed!");
