@@ -34,6 +34,8 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   google_fonts: ^6.2.1  
+  http: ^1.6.0
+  fl_chart: ^0.70.0 #for donut charts, piecharts
 
 dev_dependencies:
   flutter_test:
