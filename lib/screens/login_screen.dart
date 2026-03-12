@@ -1,4 +1,5 @@
 import 'package:financetracker_frontend/screens/home_screen.dart';
+import 'package:financetracker_frontend/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -10,6 +11,14 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+
+  //controllers to hold the text entered by the users
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+//service to handle login and registration API calls
+  final AuthService _authService = AuthService();
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,6 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Padding(
                           padding: const EdgeInsets.only(left: 20.0),
                           child: TextField(
+                            controller: _emailController,
                             decoration: InputDecoration(
                               border: InputBorder.none,
                               hintText: 'username@gmail.com', 
@@ -111,6 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Padding(
                           padding: const EdgeInsets.only(left: 20.0),
                           child: TextField(
+                            controller: _passwordController,
                             obscureText: true, // Hides the password
                             obscuringCharacter: '*', // Makes it show *** while typing password
                             decoration: InputDecoration(
@@ -142,13 +153,39 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: SizedBox(
                           width: 300, 
                           child: ElevatedButton(
-                            onPressed: () {
-                               Navigator.push(
+                            onPressed: () async {
+                              //Getting the values
+                              String email = _emailController.text.trim();
+                              String password = _passwordController.text.trim();
+
+                              //Calling backend through service
+                              var result = await _authService.loginUser(email, password);
+
+                              if (result != null) {
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Login successful!"),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+
+                                await Future.delayed(const Duration(milliseconds: 700));
+
+                                Navigator.pushReplacement(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => const HomeScreen(),
                                   ),
                                 );
+                              }else{
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text("Invalid Email Or Password!"),
+                                  backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.teal[600],
