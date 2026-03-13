@@ -36,6 +36,7 @@ dependencies:
   google_fonts: ^6.2.1  
   http: ^1.6.0
   fl_chart: ^0.70.0 #for donut charts, piecharts
+  flutter_secure_storage: ^9.0.0
 
 dev_dependencies:
   flutter_test:

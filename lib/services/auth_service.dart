@@ -1,8 +1,12 @@
 import 'dart:convert'; // for jsonEncode
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 class AuthService {
   final String baseUrl = 'http://10.0.2.2:3000'; 
+
+  //storage instance
+  final _storage = const FlutterSecureStorage();
 
   // Function to register a new user
   Future<bool> registerUser(String name, String email, String phone, String password) async {
@@ -62,7 +66,17 @@ class AuthService {
       //Checking if login was successful
       if (response.statusCode == 200) {
         //Convert JSON response into Dart Map
-        return jsonDecode(response.body);
+        var data =  jsonDecode(response.body);
+
+        //Save tokens locally
+        //Storing the JWT so the user stays logged in
+        await _storage.write(key: 'accessToken', value: data['accessToken']);
+        await _storage.write(key: 'refreshToken', value: data['refreshToken']);
+
+        print("Login success & tokens saved!");
+        
+        return data;
+
       } else {
         print("Login failed: ${response.body}");
         return null;
