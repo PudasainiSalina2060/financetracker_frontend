@@ -1,13 +1,14 @@
 import 'package:financetracker_frontend/screens/home_screen.dart';
 import 'package:financetracker_frontend/screens/welcome_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:financetracker_frontend/screens/sign_up_screen.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:financetracker_frontend/api_test.dart';
 void main() async {
-  //tells Flutter to wait for the storage check
+
+// Initializing Firebase before running the app
   WidgetsFlutterBinding.ensureInitialized(); 
+  await Firebase.initializeApp();
 
   ConnectionTest.checkServer();
 

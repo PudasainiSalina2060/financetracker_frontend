@@ -1,16 +1,25 @@
+import 'package:financetracker_frontend/screens/home_screen.dart';
 import 'package:financetracker_frontend/screens/login_screen.dart';
 import 'package:financetracker_frontend/screens/sign_up_screen.dart';
+import 'package:financetracker_frontend/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AuthLandingScreen extends StatefulWidget {
-  const AuthLandingScreen({Key? key}) : super(key: key);
+  const AuthLandingScreen({super.key});
 
   @override
   State<AuthLandingScreen> createState() => _AuthLandingScreenState();
 }
 
 class _AuthLandingScreenState extends State<AuthLandingScreen> {
+
+  final AuthService _authService = AuthService();
+  //spinner toggle
+  bool _isLoading = false;
+  
+  //Method for  handling actual click, the waiting, and the navigation
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -22,7 +31,7 @@ class _AuthLandingScreenState extends State<AuthLandingScreen> {
             end: Alignment.bottomCenter,
             colors: [
               Colors.teal[600]!, 
-              const Color.fromARGB(255, 150, 232, 224)!, 
+              const Color.fromARGB(255, 150, 232, 224), 
             ],
           ),
         ),
@@ -178,19 +187,55 @@ class _AuthLandingScreenState extends State<AuthLandingScreen> {
                         SizedBox(height: 40),
 
                         // Google Button (Using ElevatedButton)
-                        ElevatedButton(
-                          onPressed: () {
-                            print("Google Button Clicked");
-                          },
-                          style: ElevatedButton.styleFrom(
-                            shape: const CircleBorder(), 
-                            padding: const EdgeInsets.all(15),
-                            backgroundColor: Colors.white, // for background of the circle
-                            foregroundColor: Colors.grey[300], // for ripple effect color
-                            elevation: 3, // for giving drop shadow
+                        //FOR LOADING SPINNER
+                        //if _isLoading is true, we show a spinner, if false, we show the button
+                        _isLoading
+
+                          ? const CircularProgressIndicator(color: Colors.teal) // Show spinner if busy
+                          : ElevatedButton(
+                            onPressed: () async{
+                              //telling ui to start loading the spinner
+                              setState(() {
+                                _isLoading = true;
+                              });
+
+                              
+                              //running the Google Sign-In
+                              //calling our AuthService and await (wait) for the user to pick an account
+                              var result = await _authService.signInWithGoogle();
+
+                              //telling the ui we are done
+                              //whether it worked or failed, stop loading the spinner
+                              setState(() {
+                                _isLoading = false;
+                              });
+                              
+                              //checking if it worked
+                              if (result != null) {
+                                print("User logged in succesfully");
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                                  (route) => false,
+                                );
+                              }else{
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Login Failed"),
+                                    backgroundColor: Colors.red,
+                                    ),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              shape: const CircleBorder(), 
+                              padding: const EdgeInsets.all(15),
+                              backgroundColor: Colors.white, // for background of the circle
+                              foregroundColor: Colors.grey[300], // for ripple effect color
+                              elevation: 3, // for giving drop shadow
+                            ),
+                            child: Image.asset("assets/images/google_logo.png", height: 40),
                           ),
-                          child: Image.asset("assets/images/google_logo.png", height: 40),
-                        ),
                         
                         SizedBox(height: 20), 
                       ],

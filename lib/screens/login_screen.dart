@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -226,7 +226,32 @@ class _LoginScreenState extends State<LoginScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () {
+                          onPressed: () async {
+                            var result = await _authService.signInWithGoogle();
+
+                            if(result != null){
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Google Login successful!"),
+                                  backgroundColor: Colors.green,
+                                ),
+                               );
+
+                               //clearing stack and moving to Home page
+                               Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                                (route) => false,
+                               );
+                            }else{
+                              //if the result is null or something went wrong
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Google Sign-In failed or cancelled."),
+                                  backgroundColor: Colors.red,)
+                                  );
+                            }
+
                             print("Google Login Clicked");
                           },
                           style: ElevatedButton.styleFrom(

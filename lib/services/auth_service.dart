@@ -1,5 +1,7 @@
 import 'dart:convert'; // for jsonEncode
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 
 class AuthService {
@@ -83,6 +85,65 @@ class AuthService {
       }
     } catch (error) {
       print("Connection error: $error");
+      return null;
+    }
+  }
+
+  //Method for Sign in Using Google
+
+  /// Authenticates the user using Google Sign-In through Firebase Authentication.
+  /// 
+  /// Signs the user into Google and Firebase
+  /// Sends the Firebase ID Token to our custom Node.js backend.
+  /// Stores the returned JWT in secure storage.
+  /// 
+  /// Returns the backend response Map or null if authentication fails.
+  Future<Map<String, dynamic>?> signInWithGoogle() async {
+    try{
+      //Client-Side Authentication
+      final GoogleSignIn googleSignIn = GoogleSignIn(); 
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      // User closed the popup
+      if (googleUser == null) return null; 
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign into Firebase to get a verified ID Token
+      final UserCredential userCredential =
+        await FirebaseAuth.instance.signInWithCredential(credential);
+
+        final String? idToken = await userCredential.user?.getIdToken();
+
+        //Backend Verification
+        if (idToken != null){
+          var url = Uri.parse('$baseUrl/api/auth/google-login');
+
+          var response = await http.post(
+            url,
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer $idToken",
+            },
+          );
+
+          if (response.statusCode == 200){
+            var data = jsonDecode(response.body);
+
+            // Save local session tokens
+            await _storage.write(key: 'accessToken', value: data['accessToken']);
+
+            print("Google Login success!");
+            return data;
+          } 
+        }
+        return null;
+    } catch (error){
+      print("Error during Google Sign-In: $error");
       return null;
     }
   }
