@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({Key? key}) : super(key: key);
+  const AddTransactionScreen({super.key});
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -105,7 +105,7 @@ void _showSuccessPopup() {
               });
               Navigator.pop(context); // Close the menu
             },
-          )).toList(),
+          )),
         ],
       );
     },

@@ -9,12 +9,12 @@ class EditAccountPage extends StatefulWidget {
   final String initialType;
 
   const EditAccountPage({
-    Key? key,
+    super.key,
     required this.accountName,
     required this.balance,
     required this.accountId,
     this.initialType = 'Cash', //defaults to Cash if nothing is passed as type
-  }) : super(key: key);
+  });
 
   @override
   State<EditAccountPage> createState() => _EditAccountPageState();

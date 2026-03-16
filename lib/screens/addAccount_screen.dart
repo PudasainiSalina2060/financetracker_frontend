@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AddAccountPage extends StatefulWidget {
-  const AddAccountPage({Key? key}) : super(key: key);
+  const AddAccountPage({super.key});
 
   @override
   State<AddAccountPage> createState() => _AddAccountPageState();

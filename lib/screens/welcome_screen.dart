@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class WelcomeScreen extends StatelessWidget {
-  const WelcomeScreen({Key? key}) : super(key: key);
+  const WelcomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -16,9 +16,9 @@ class WelcomeScreen extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              const Color.fromARGB(255, 9, 149, 135)!, 
-              const Color.fromARGB(255, 67, 188, 176)!, 
-              const Color.fromARGB(255, 178, 234, 164)!, 
+              const Color.fromARGB(255, 9, 149, 135), 
+              const Color.fromARGB(255, 67, 188, 176), 
+              const Color.fromARGB(255, 178, 234, 164), 
             ],
           ),
         ),

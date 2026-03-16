@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class InsightsPage extends StatefulWidget {
-  const InsightsPage({Key? key}) : super(key: key);
+  const InsightsPage({super.key});
 
   @override
   State<InsightsPage> createState() => _InsightsPageState();
