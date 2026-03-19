@@ -1,3 +1,4 @@
+import 'package:financetracker_frontend/services/account_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -9,6 +10,10 @@ class AddAccountPage extends StatefulWidget {
 }
 
 class _AddAccountPageState extends State<AddAccountPage> {
+
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _balanceController = TextEditingController();
+  final AccountService _accountService = AccountService();
 
   //variable to track which one account is selected (Default is Cash)
   String selectedType = 'Cash';
@@ -77,6 +82,7 @@ class _AddAccountPageState extends State<AddAccountPage> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 15.0),
                     child: TextField(
+                      controller: _nameController,
                       decoration: InputDecoration(
                         border: InputBorder.none,
                         hintText: 'e.g. My esewa Account',
@@ -112,10 +118,11 @@ class _AddAccountPageState extends State<AddAccountPage> {
                         child: Text('NPR', style: GoogleFonts.karma(fontWeight: FontWeight.bold)),
                       ),
                       // Amount input
-                      const Expanded(
+                       Expanded(
                         child: Padding(
                           padding: EdgeInsets.symmetric(horizontal: 15.0),
                           child: TextField(
+                            controller: _balanceController,
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(border: InputBorder.none, hintText: '0'),
                           ),
@@ -154,15 +161,42 @@ class _AddAccountPageState extends State<AddAccountPage> {
 
                 // Add Account Button
                 GestureDetector(
-                  onTap: () {
-                    //show the snackbar success message
-                    _showSuccessPopup();
-                    
-                    //holding a bit so the user can see the message
-                    Future.delayed(const Duration(seconds: 2), () {
-                      //going back to the previous screen
-                      Navigator.pop(context);
-                    });
+                  onTap: () async {
+                    //get the data from the screen
+                    String name = _nameController.text.trim();
+                    double balance = double.tryParse(_balanceController.text) ?? 0.0;
+                    String type = selectedType;
+
+                    //validation
+                    if (name.isEmpty){
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Please enter a name")),
+                      );
+                      return;
+                    }
+
+                    bool success = await _accountService.createAccount(
+                      name,
+                      balance,
+                      type,
+                    );
+
+                    //Handling response
+                    if(success){
+                      _showSuccessPopup();
+                      //holding a bit so the user can see the message
+                      Future.delayed(const Duration(seconds: 2), () {
+                        //going back to the previous screen
+                        Navigator.pop(context);
+                      });
+                    }else{
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Failed to add account. Check your connection."),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   },
                   child: Container(
                     width: double.infinity,
@@ -192,7 +226,7 @@ class _AddAccountPageState extends State<AddAccountPage> {
   }
   Widget _buildCategoryIcon(String title, IconData icon) {
   // This line checks if the current icon matches what the user selected
-  bool isSelected = selectedType == title;
+  bool isSelected = selectedType.toLowerCase()== title.toLowerCase();
 
   return GestureDetector(
     onTap: () {

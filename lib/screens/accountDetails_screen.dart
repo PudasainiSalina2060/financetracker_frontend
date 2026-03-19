@@ -1,3 +1,4 @@
+import 'package:financetracker_frontend/services/account_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -26,11 +27,18 @@ class _EditAccountPageState extends State<EditAccountPage> {
 //variable that tracks which account type is currently selected
   late String selectedType;
 
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _balanceController = TextEditingController();
+  final AccountService _accountService = AccountService();
+
   @override
   void initState() {
     super.initState();
     //runs once when the page opens to set the initial icon and text
-    selectedType = widget.initialType; 
+    selectedType = widget.initialType;
+    _nameController.text = widget.accountName;
+    _balanceController.text = widget.balance;
+
   }
 
   @override
@@ -49,6 +57,19 @@ class _EditAccountPageState extends State<EditAccountPage> {
           "Account Details",
           style: GoogleFonts.karma(color: Colors.black, fontWeight: FontWeight.bold),
         ),
+
+        //for delete button
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0), 
+            child: IconButton(
+              icon: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent, size: 28),
+              onPressed: () => _showDeleteConfirmation(context), 
+            ),
+          )
+        ],
+
+
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -73,10 +94,15 @@ class _EditAccountPageState extends State<EditAccountPage> {
                       _getHeaderTitle(),
                       style: GoogleFonts.karma(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                     ),
-                    Text(
-                      "Balance: NPR ${widget.balance}",
-                      style: GoogleFonts.karma(color: Colors.white70, fontSize: 16,fontWeight: FontWeight.bold),
-                    ),
+                    ValueListenableBuilder(
+                      valueListenable: _balanceController,
+                      builder: (context, value, child) {
+                        return Text(
+                          "Balance: NPR ${value.text}",
+                          style: GoogleFonts.karma(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold),
+                        );
+                      }
+                    )
                   ],
                 ),
               ),
@@ -115,14 +141,14 @@ class _EditAccountPageState extends State<EditAccountPage> {
                   Text("Rename Account", style: GoogleFonts.karma(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
                   //normal text keyboard for the name
-                  _buildSimpleInput(widget.accountName, Icons.edit),
+                  _buildSimpleInput(_nameController, Icons.edit),
                   
                   const SizedBox(height: 20),
                   
                   Text("Opening Balance", style: GoogleFonts.karma(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
                   //system number pad for the balance
-                  _buildSimpleInput("NPR ${widget.balance}", Icons.calculate_outlined, isNumber: true),
+                  _buildSimpleInput(_balanceController, Icons.calculate_outlined, isNumber: true),
                 ],
               ),
             ),
@@ -154,14 +180,25 @@ class _EditAccountPageState extends State<EditAccountPage> {
             Padding(
               padding: const EdgeInsets.all(25.0),
               child: InkWell( 
-                onTap: () {
-                  //Displaying a quick message for save confirmation
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    //Default duration: 4 second it will appear on the screen.
-                    const SnackBar(content: Text("Changes Saved successfully!")),
-                    );
-                   
-                    },
+                onTap: () async {
+                  double? balance = double.tryParse(_balanceController.text);
+
+                  bool success = await _accountService.updateAccount(
+                    widget.accountId,
+                    _nameController.text,
+                    balance ?? 0.0,
+                    selectedType
+                  );
+
+                  if (success){
+                    //Displaying a quick message for save confirmation
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      //Default duration: 4 second it will appear on the screen.
+                      const SnackBar(content: Text("Changes Saved successfully!")),
+                      );
+                      Navigator.pop(context, true);
+                    }
+                  },
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(15),
@@ -184,8 +221,65 @@ class _EditAccountPageState extends State<EditAccountPage> {
     );
   }
 
+//Delete confirmation pop up
+  void _showDeleteConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: Text(
+            "Delete Account?",
+            style: GoogleFonts.karma(fontWeight: FontWeight.bold, color: Colors.red[700]),
+          ),
+          content: Text(
+            "Are you sure you want to delete '${widget.accountName}'? \n\nNote: You can only delete accounts that have zero transactions.",
+            style: GoogleFonts.karma(),
+          ),
+          actions: [
+            TextButton(
+              child: Text("Cancel", style: GoogleFonts.karma(color: Colors.grey)),
+              onPressed: () => Navigator.pop(context),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: Text("Delete", style: GoogleFonts.karma(color: Colors.white)),
+              onPressed: () async {
+                Navigator.pop(context); // Close the dialog first
+                
+                // Now attempt the actual deletion from your database
+                bool success = await _accountService.deleteAccount(widget.accountId);
+                
+                if (success) {
+                  if (mounted) {
+                    Navigator.pop(context, true); // Go back to home page
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Account deleted successfully")),
+                    );
+                  }
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        backgroundColor: Colors.red,
+                        content: Text("Cannot delete: This account still has transaction history."),
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   //Helper function : widget helper to create consistent input fields
-  Widget _buildSimpleInput(String text, IconData icon, {bool isNumber = false}) {
+  Widget _buildSimpleInput(TextEditingController controller, IconData icon, {bool isNumber = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
       decoration: BoxDecoration(
@@ -194,10 +288,10 @@ class _EditAccountPageState extends State<EditAccountPage> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: TextField(
+        controller: controller,
         keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
         decoration: InputDecoration(
           border: InputBorder.none,
-          hintText: text,
           suffixIcon: Icon(icon, color: Colors.teal, size: 20),
         ),
       ),
@@ -223,7 +317,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
 //Helper function for the circular category icons
 //creates the clickable circular icons for Type selection
   Widget _buildCategoryIcon(String title, IconData icon) {
-    bool isSelected = selectedType == title;
+    bool isSelected = selectedType.toLowerCase() == title.toLowerCase();
     return GestureDetector(
       onTap: () => setState(() => selectedType = title),
       child: Column(
@@ -270,9 +364,12 @@ class _EditAccountPageState extends State<EditAccountPage> {
 
 //To figure out which text to show at the top of the page
   String _getHeaderTitle() {
-    if (selectedType == 'Bank') {
+
+    String type = selectedType.toUpperCase();
+    
+    if (selectedType == 'BANK') {
       return 'Bank Account'; 
-    } else if (selectedType == 'Card') {
+    } else if (selectedType == 'CARD') {
       return 'Card / eSewa'; 
     } else {
       return 'Cash Account';

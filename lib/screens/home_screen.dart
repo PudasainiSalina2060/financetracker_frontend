@@ -2,6 +2,7 @@ import 'package:financetracker_frontend/screens/accountDetails_screen.dart';
 import 'package:financetracker_frontend/screens/addAccount_screen.dart';
 import 'package:financetracker_frontend/screens/addTransaction_screen.dart';
 import 'package:financetracker_frontend/screens/insights_screen.dart';
+import 'package:financetracker_frontend/services/account_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:financetracker_frontend/screens/budget_screen.dart';
@@ -16,8 +17,41 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+
+  //instance of the service
+  final AccountService _accountService = AccountService();
+  
+  //variables to hold data
+  double _totalBalance = 0.0;
+  List<dynamic> _accounts = [];
+  //to show a loading spinner while fetching data
+  bool _isLoading = true; 
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchHomeData(); //call the backend when screen starts
+  }
+
+  Future<void> _fetchHomeData() async {
+    // Get both total balance and account list from AccountService
+    final balance = await _accountService.getTotalBalance();
+    final accountsList = await _accountService.getAllAccounts();
+
+    setState(() {
+      _totalBalance = balance;
+      _accounts = accountsList;
+      _isLoading = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+
+    if (_isLoading){
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -69,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     const Text("Total balance", style: TextStyle(color: Colors.white70, fontSize: 16)),
                     const SizedBox(height: 10),
-                    const Text("NPR 120,000", style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
+                    Text("NPR ${_totalBalance.toStringAsFixed(2)}", style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -83,11 +117,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   const Text("Accounts", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                   // CLICKABLE: Add Account text
                   InkWell(
-                    onTap: () {
-                      Navigator.push(
+                    onTap: () async{
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const AddAccountPage()),
                       );
+                      _fetchHomeData();
                     },
                     child: Text("+ Add account", style: GoogleFonts.karma(color: Colors.teal[700], fontWeight: FontWeight.w600)),
                   ),
@@ -96,14 +131,24 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 15),
               
               // Horizontal Scroll for Account Cards
-              SingleChildScrollView(
+            _accounts.isEmpty
+              //displaying this if the list is empty
+              ? const Text("No accounts added yet") 
+              :SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
-                  children: [
-                    _buildAccountCard("Cash", "20,000", Icons.money_outlined, 1),
-                    _buildAccountCard("Bank", "80,000", Icons.account_balance_outlined, 2),
-                    _buildAccountCard("eSewa", "20,000", Icons.wallet_outlined, 3),
-                  ],
+                  //using .map to create a card for every item in our _accounts list
+                  children: _accounts.map((acc){
+                    return _buildAccountCard(
+                      acc['name'] ?? "Unnamed",
+                      (acc['current_balance'] ?? 0).toString(),
+                      //for picking the right icon
+                      acc['type']?.toString().toUpperCase() == 'BANK' ? Icons.account_balance_outlined :
+                      acc['type']?.toString().toUpperCase() == 'CARD' ? Icons.credit_card : Icons.payments_outlined,
+                      acc['account_id'],
+                      acc['type'] ?? 'CASH',
+                    );
+                  }).toList(),
                 ),
               ),
 
@@ -176,28 +221,24 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   //generates the clickable Account Cards (Cash, Bank,..)
-  Widget _buildAccountCard(String title, String amount, IconData icon, int id) {
+  Widget _buildAccountCard(String title, String amount, IconData icon, int id, String type) {
     return Padding(
       padding: const EdgeInsets.only(right: 15),
       child: InkWell(
-        onTap: () {
-          //variable to hold the account category,starting with the account name
-          String typeToPass = title;
-          if (title == "eSewa") {
-            //the correct icon (credit card) is highlighted by default
-            typeToPass = "Card"; // maps eSewa to the card category icon
-          }
-          Navigator.push(
+        onTap: () async {
+          await Navigator.push(
             context,
             MaterialPageRoute(
               builder:(context)=> EditAccountPage(
                 accountName: title, 
                 balance: amount, 
                 accountId: id,
-                initialType: typeToPass,
+                initialType: type,
                 ),
               ),
           );
+          //refresh data when user comes back from Editing
+          _fetchHomeData();
         },
         borderRadius: BorderRadius.circular(15),
         child: Container(
