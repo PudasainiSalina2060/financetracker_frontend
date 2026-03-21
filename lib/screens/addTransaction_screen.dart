@@ -1,3 +1,5 @@
+import 'package:financetracker_frontend/services/account_service.dart';
+import 'package:financetracker_frontend/services/transaction_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -19,9 +21,49 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   //variable to store the actual date selected by the user
   DateTime selectedDate = DateTime.now();
 
+  String selectedRecurring = "Daily";
+
   //variable to store category/ items while adding new transaction
   String selectedCategory = "Food"; 
   IconData selectedIcon = Icons.restaurant;
+
+  final AccountService _accountService = AccountService(); 
+  final TransactionService _transactionService = TransactionService();
+
+  //controller for notes box
+  TextEditingController notesController = TextEditingController();
+
+  List<dynamic> _accounts = []; 
+  String _selectedAccountName = "Select Account"; 
+  int? _selectedAccountId; // store selected account id
+  bool _isLoadingAccounts = true; 
+
+
+  //fetching accounts list
+  void initState() {
+    super.initState();
+    //calling the fetch function
+    _loadUserAccounts(); 
+  }
+
+  Future<void> _loadUserAccounts() async {
+    final accounts = await _accountService.getAllAccounts();
+    setState((){
+      _accounts = accounts;
+      if (_accounts.isNotEmpty) {
+        _selectedAccountName = _accounts[0]['name'];
+        _selectedAccountId = _accounts[0]['account_id'];
+      }
+      _isLoadingAccounts = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    amountController.dispose();
+    notesController.dispose();
+    super.dispose();
+  }
 
   //Function to open the calendar (Using Flutter's built-in Date Picker)
   Future<void> _selectDate(BuildContext context) async {
@@ -103,7 +145,7 @@ void _showSuccessPopup() {
                 selectedCategory = category.key; // update the text
                 selectedIcon = category.value;   // update the icon
               });
-              Navigator.pop(context); // Close the menu
+              Navigator.pop(context); 
             },
           )),
         ],
@@ -111,6 +153,68 @@ void _showSuccessPopup() {
     },
   );
 }
+
+//Function to show list of accounts
+void _showAccountPicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            const Text("Select Account", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            // show accounts
+            ..._accounts.map((account) => ListTile(
+              leading: const Icon(Icons.account_balance, color: Colors.teal),
+              title: Text(account['name']),
+              subtitle: Text("NPR ${account['current_balance']}"), 
+              onTap: () {
+                setState(() {
+                  _selectedAccountName = account['name'];
+                  _selectedAccountId = account['account_id'];
+                });
+                Navigator.pop(context); // Close the menu
+              },
+            )),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _handleSave() async {
+
+    print("Debug: Amount = '${amountController.text}', AccountID = $_selectedAccountId");
+
+    if (amountController.text.isEmpty || _selectedAccountId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter amount and select account")),
+      );
+      return;
+    }
+
+    final success = await _transactionService.addTransaction(
+      accountId: _selectedAccountId!,
+      categoryId: 1, 
+      type: isIncome ? 'income' : 'expense',
+      amount: double.parse(amountController.text),
+      notes: notesController.text, 
+      date: selectedDate,
+      isRecurring: selectedRecurring != "None", 
+      frequency: selectedRecurring.toLowerCase(),
+    );
+
+    if (success) {
+      _showSuccessPopup();
+      Future.delayed(const Duration(seconds: 1), () => Navigator.pop(context));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to save transaction"), backgroundColor: Colors.red),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -148,10 +252,17 @@ void _showSuccessPopup() {
               textAlign: TextAlign.center, // keeps the numbers nicely in the middle
               style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.teal[700]),
               decoration: InputDecoration(
-                hintText: "NPR 0.00",
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.only(left: 65, top: 5),
+                  child: Text(
+                    "NPR",
+                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.teal[300]),),
+                ),
+                prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                hintText: "0.00",
                 hintStyle: TextStyle(color: Colors.teal[300]),
                 border: InputBorder.none, 
-              ),
+              ), 
             ),
             
             const SizedBox(height: 30),
@@ -167,7 +278,15 @@ void _showSuccessPopup() {
                 ),
               ),
             ),
-            _buildInputField(Icons.account_balance, "Nabil Bank"),
+            InkWell(
+              onTap: _showAccountPicker, // triggering the picker we made before
+              child: IgnorePointer(
+                child: _buildInputField(
+                  Icons.account_balance, 
+                  _isLoadingAccounts ? "Loading..." : _selectedAccountName,
+                ),
+              ),
+            ),
             
             //FOR CALENDAR INPUT
             InkWell(
@@ -189,11 +308,15 @@ void _showSuccessPopup() {
               children: [
                 const Text("Recurring Transaction", style: TextStyle(color: Colors.grey, fontSize: 16)),
                 DropdownButton<String>(
-                  value: "Daily",
-                  items: ["Daily", "Weekly", "Monthly"].map((String value) {
+                  value: selectedRecurring,
+                  items: ["Daily", "Weekly", "Monthly", "None"].map((String value) {
                     return DropdownMenuItem<String>(value: value, child: Text(value));
                   }).toList(),
-                  onChanged: (newValue) {},
+                  onChanged: (newValue) {
+                    setState(() {
+                      selectedRecurring = newValue!;
+                    });
+                  },
                 ),
               ],
             ),
@@ -202,6 +325,7 @@ void _showSuccessPopup() {
 
             // NOTES BOX
             TextField(
+              controller: notesController,
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: "Notes",
@@ -218,7 +342,7 @@ void _showSuccessPopup() {
               width: double.infinity,
               height: 55,
               child: ElevatedButton(
-                onPressed: () => _showSuccessPopup(), //Trigerring the above save pop up transaction function
+                onPressed: () => _handleSave(), //save transaction
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.teal,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
