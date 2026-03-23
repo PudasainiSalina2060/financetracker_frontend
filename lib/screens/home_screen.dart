@@ -1,8 +1,10 @@
+import 'package:financetracker_frontend/models/transaction_model.dart';
 import 'package:financetracker_frontend/screens/accountDetails_screen.dart';
 import 'package:financetracker_frontend/screens/addAccount_screen.dart';
 import 'package:financetracker_frontend/screens/addTransaction_screen.dart';
 import 'package:financetracker_frontend/screens/insights_screen.dart';
 import 'package:financetracker_frontend/services/account_service.dart';
+import 'package:financetracker_frontend/services/transaction_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:financetracker_frontend/screens/budget_screen.dart';
@@ -27,6 +29,9 @@ class _HomeScreenState extends State<HomeScreen> {
   //to show a loading spinner while fetching data
   bool _isLoading = true; 
 
+  final TransactionService _transactionService = TransactionService();
+  List<Transaction> _transactions = [];
+
   @override
   void initState() {
     super.initState();
@@ -37,10 +42,12 @@ class _HomeScreenState extends State<HomeScreen> {
     // Get both total balance and account list from AccountService
     final balance = await _accountService.getTotalBalance();
     final accountsList = await _accountService.getAllAccounts();
+    final transList = await _transactionService.getAllTransactions();
 
     setState(() {
       _totalBalance = balance;
       _accounts = accountsList;
+      _transactions = transList;
       _isLoading = false;
     });
   }
@@ -168,8 +175,80 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 15),
               //TRANSACTION LIST: Individual transaction rows
-              _buildTransactionItem("Salary", "2:07 pm", "NRs 20,000", Icons.add, Colors.green),
-              _buildTransactionItem("Rent", "10:00 am", "NRs 18,000", Icons.remove, Colors.red),
+              _transactions.isEmpty 
+              ? const Center(child: Text("No transactions yet")) 
+              : ListView.builder(
+                  shrinkWrap: true, 
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _transactions.length,
+                  itemBuilder: (context, index) {
+                    final tx = _transactions[index];
+
+                    return Dismissible(
+                      key: Key(tx.id.toString()),
+                      direction: DismissDirection.endToStart, // Swipe left
+                      
+                      //for the delete box
+                      background: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20),
+                        child: const Icon(Icons.delete, color: Colors.white),
+                      ),
+
+                      //delete confirmation pop up
+                      confirmDismiss: (direction) async {
+                        return await showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text("Delete Transaction?"),
+                            content: const Text("This will update your account balance. Proceed?"),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("No")),
+                              TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Yes, Delete")),
+                            ],
+                          ),
+                        );
+                      },
+
+                      // for delete action
+                      onDismissed: (direction) async {
+                        await _transactionService.deleteTransaction(tx.id);
+                        _fetchHomeData();
+                      },
+
+                      child: ListTile(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => AddTransactionScreen(existingTransaction: tx)),
+                          ).then((_) => _fetchHomeData());
+                        },
+                        leading: CircleAvatar(
+                          backgroundColor: tx.type == 'income' ? Colors.green[50] : Colors.red[50],
+                          child: Icon(
+                            tx.type == 'income' ? Icons.add : Icons.remove,
+                            color: tx.type == 'income' ? Colors.green : Colors.red,
+                            size: 18,
+                          ),
+                        ),
+                        title: Text(tx.categoryName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text("${tx.accountName} • ${tx.notes}", style: const TextStyle(fontSize: 12)),
+                        trailing: Text(
+                          "NPR ${tx.amount}",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: tx.type == 'income' ? Colors.green : Colors.red,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
             ],
           ),
         ),
@@ -178,13 +257,16 @@ class _HomeScreenState extends State<HomeScreen> {
       // Floating Action Button for Adding Transactions ( The main ADD + button)
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          await Navigator.push(
+          final result = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => const AddTransactionScreen(),
             ),
           );
+
+          if (result == true){
           _fetchHomeData();
+          }
         },
         backgroundColor: Colors.white,
         elevation: 4,
