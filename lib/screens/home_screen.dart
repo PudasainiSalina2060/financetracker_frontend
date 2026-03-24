@@ -5,10 +5,12 @@ import 'package:financetracker_frontend/screens/addTransaction_screen.dart';
 import 'package:financetracker_frontend/screens/insights_screen.dart';
 import 'package:financetracker_frontend/services/account_service.dart';
 import 'package:financetracker_frontend/services/transaction_service.dart';
+import 'package:financetracker_frontend/services/user_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:financetracker_frontend/screens/budget_screen.dart';
 import 'package:financetracker_frontend/screens/notifications_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -32,6 +34,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final TransactionService _transactionService = TransactionService();
   List<Transaction> _transactions = [];
 
+  final UserService _userService = UserService();
+  String _firstName = "User";
+
   @override
   void initState() {
     super.initState();
@@ -39,17 +44,35 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchHomeData() async {
-    // Get both total balance and account list from AccountService
-    final balance = await _accountService.getTotalBalance();
-    final accountsList = await _accountService.getAllAccounts();
-    final transList = await _transactionService.getAllTransactions();
+
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    //retrieving the users stored token
+    final String? userToken = prefs.getString('accessToken');
+
+    if(userToken == null){
+      print("No token found");
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      // Get both total balance and account list from AccountService
+      final balance = await _accountService.getTotalBalance();
+      final accountsList = await _accountService.getAllAccounts();
+      final transList = await _transactionService.getAllTransactions();
+      final name = await _userService.getFirstName(userToken);
 
     setState(() {
       _totalBalance = balance;
       _accounts = accountsList;
       _transactions = transList;
+      _firstName = name;
       _isLoading = false;
-    });
+      });
+    }catch(error){
+      print("Error fetching home data: $error");
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -73,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text("Hello Lee", style: GoogleFonts.inika(fontSize: 28, fontWeight: FontWeight.bold)),
+                  Text("Hello $_firstName", style: GoogleFonts.inika(fontSize: 28, fontWeight: FontWeight.bold)),
                   Row(
                     children: [
                       IconButton(onPressed: () {
