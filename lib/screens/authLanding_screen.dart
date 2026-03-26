@@ -4,6 +4,7 @@ import 'package:financetracker_frontend/screens/sign_up_screen.dart';
 import 'package:financetracker_frontend/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthLandingScreen extends StatefulWidget {
   const AuthLandingScreen({super.key});
@@ -212,6 +213,12 @@ class _AuthLandingScreenState extends State<AuthLandingScreen> {
                               
                               //checking if it worked
                               if (result != null) {
+                                final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+                                if (result is Map && result['accessToken'] != null){
+                                  await prefs.setString('accessToken', result['accessToken']);
+                                  print("Access Token Saved: ${result['accessToken']}");
+                                }
                                 print("User logged in succesfully");
                                 Navigator.pushAndRemoveUntil(
                                   context,

@@ -2,6 +2,7 @@ import 'package:financetracker_frontend/screens/home_screen.dart';
 import 'package:financetracker_frontend/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -163,6 +164,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
                               if (result != null) {
 
+                                 final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+                                 if (result['accessToken'] != null) {
+                                    await prefs.setString('accessToken', result['accessToken']);
+                                    print("Token SAVED SUCCESSFULLY: ${result['accessToken']}");
+                                  }
+
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text("Login successful!"),
@@ -230,6 +238,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             var result = await _authService.signInWithGoogle();
 
                             if(result != null){
+
+                              final prefs = await SharedPreferences.getInstance();
+
+                              if (result is Map && result['accessToken'] != null){
+                                await prefs.setString('accessToken', result['accessToken']);
+                              }
+
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text("Google Login successful!"),
