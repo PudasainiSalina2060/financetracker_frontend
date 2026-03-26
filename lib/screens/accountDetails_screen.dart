@@ -188,11 +188,20 @@ Future<void> _loadAccountTransactions() async {
 
             Padding(
               padding: const EdgeInsets.all(20.0),
-              child: Column(
-                children: [
-                  _transactionItem("Groceries - Big Mart", "-4,000", "12:05 AM", Icons.shopping_cart),
-                  _transactionItem("Lunch - New Cafe", "-14,000", "2:05 PM", Icons.restaurant),
-                ],
+              child: displayList.isEmpty
+              ? const Center(child: Text("No transactions for this account yet."))
+              :Column(
+                children: displayList.map((t) {
+                  //Format the amount: add "+" for income, "-" for expense
+                  String sign = t.type == 'income' ? "+" : "-";
+                  return _transactionItem(
+                    "${t.categoryName} - ${t.notes}",
+                    "$sign NPR ${t.amount}",
+                    "${t.date.day}/${t.date.month}",
+                    Icons.receipt_long,
+                    isIncome: t.type == 'income',
+                  );
+                }).toList(),
               ),
             ),
 
@@ -319,17 +328,38 @@ Future<void> _loadAccountTransactions() async {
   }
 
   //Helper function : widget helper to display individual transaction rows
-  Widget _transactionItem(String title, String price, String time, IconData icon) {
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: Colors.teal[50],
-        child: Icon(icon, color: Colors.teal, size: 20),
+  Widget _transactionItem(String title, String amount, String time, IconData icon, {bool isIncome = false}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 15),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
       ),
-      title: Text(title, style: GoogleFonts.karma(fontWeight: FontWeight.w500)),
-      subtitle: Text(time, style: GoogleFonts.karma(fontSize: 12, color: Colors.grey)),
-      trailing: Text(
-        "NPR $price",
-        style: GoogleFonts.karma(color: Colors.red, fontWeight: FontWeight.bold),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: const Color(0xFF009688).withOpacity(0.1),
+            child: Icon(icon, color: const Color(0xFF009688), size: 20),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: GoogleFonts.karma(fontWeight: FontWeight.bold)),
+                Text(time, style: GoogleFonts.karma(color: Colors.grey, fontSize: 12)),
+              ],
+            ),
+          ),
+          Text(
+            amount,
+            style: GoogleFonts.karma(
+              fontWeight: FontWeight.bold,
+              color: isIncome ? Colors.green : Colors.red, // Change color based on type
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -373,9 +403,12 @@ Future<void> _loadAccountTransactions() async {
   }
   //To figure out out which icon to show at the top of the page
   IconData _getHeaderIcon() {
-    if (selectedType == 'Bank') {
+
+    String type = selectedType.toUpperCase();
+    
+    if (type == 'BANK') {
       return Icons.account_balance_outlined;
-    } else if (selectedType == 'Card') {
+    } else if (type == 'CARD') {
       return Icons.credit_card_outlined; 
     } else {
       return Icons.payments_outlined;
@@ -387,9 +420,9 @@ Future<void> _loadAccountTransactions() async {
 
     String type = selectedType.toUpperCase();
     
-    if (selectedType == 'BANK') {
+    if (type == 'BANK') {
       return 'Bank Account'; 
-    } else if (selectedType == 'CARD') {
+    } else if (type == 'CARD') {
       return 'Card / eSewa'; 
     } else {
       return 'Cash Account';
