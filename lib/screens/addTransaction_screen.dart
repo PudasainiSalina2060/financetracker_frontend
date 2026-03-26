@@ -1,10 +1,15 @@
+import 'package:financetracker_frontend/models/category_model.dart';
+import 'package:financetracker_frontend/models/transaction_model.dart';
 import 'package:financetracker_frontend/services/account_service.dart';
+import 'package:financetracker_frontend/services/category_service.dart';
 import 'package:financetracker_frontend/services/transaction_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({super.key});
+  final Transaction? existingTransaction;
+  const AddTransactionScreen({super.key, this.existingTransaction});
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -23,13 +28,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   String selectedRecurring = "Daily";
 
-  //variable to store category/ items while adding new transaction
-  String selectedCategory = "Food"; 
-  IconData selectedIcon = Icons.restaurant;
+  // Category data from backend
+  List<CategoryModel> _allCategories = [];
+
+  // currently selected category
+  CategoryModel? _selectedCategory; 
+
+  // loading state
+  bool _isLoadingCategories = true;
 
   final AccountService _accountService = AccountService(); 
   final TransactionService _transactionService = TransactionService();
-
+  final CategoryService _categoryService = CategoryService();
+  
   //controller for notes box
   TextEditingController notesController = TextEditingController();
 
@@ -44,6 +55,27 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     super.initState();
     //calling the fetch function
     _loadUserAccounts(); 
+    _loadCategories();
+
+    //if we are editing an existing transaction, following fields shall be filled
+    if (widget.existingTransaction != null) {
+      amountController.text = widget.existingTransaction!.amount.toString();
+      notesController.text = widget.existingTransaction!.notes;
+      selectedDate = widget.existingTransaction!.date;
+      isIncome = widget.existingTransaction!.type == 'income';
+      
+      _selectedAccountId = widget.existingTransaction!.accountId;
+
+      if (widget.existingTransaction!.isRecurring == false) {
+      selectedRecurring = "None";
+      } else {
+        String freq = widget.existingTransaction!.frequency ?? "Daily";
+        selectedRecurring = freq[0].toUpperCase() + freq.substring(1);
+      }
+    }else{
+      //default for new transactions
+      selectedRecurring = "None";
+    }
   }
 
   Future<void> _loadUserAccounts() async {
@@ -51,11 +83,59 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     setState((){
       _accounts = accounts;
       if (_accounts.isNotEmpty) {
+        //If editing, find the name of the existing account
+        if (widget.existingTransaction != null) {
+          final existingAcc = _accounts.firstWhere(
+            (acc) => acc['account_id'] == widget.existingTransaction!.accountId,
+            orElse: () => _accounts[0],
+          );
+          _selectedAccountName = existingAcc['name'];
+          _selectedAccountId = existingAcc['account_id'];
+        }else{
+          //default to first account for new transactions
         _selectedAccountName = _accounts[0]['name'];
         _selectedAccountId = _accounts[0]['account_id'];
+        }
       }
       _isLoadingAccounts = false;
     });
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      //to get accessToken saved during login
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? accessToken = prefs.getString('accessToken');
+      print("DEBUG: Fetching categories with accessToken: $accessToken");
+
+      final categories = await _categoryService.getAllCategories(accessToken ?? "");
+      print("DEBUG: Received ${categories.length} categories from server");
+
+      setState(() {
+        _allCategories = categories;
+        
+        // Safety check: only try to select a default if we actually got categories back
+        if (_allCategories.isNotEmpty) {
+          if (widget.existingTransaction != null) {
+            _selectedCategory = _allCategories.firstWhere(
+              (cat) => cat.id == widget.existingTransaction!.categoryId,
+              orElse: () => _allCategories[0],
+            );
+          } else {
+            // Filter first to find a default that matches the current "Income" or "Expense" toggle
+            final String currentType = isIncome ? 'INCOME' : 'EXPENSE';
+            _selectedCategory = _allCategories.firstWhere(
+              (cat) => cat.type.trim().toUpperCase() == currentType,
+              orElse: () => _allCategories[0],
+            );
+          }
+        }
+        _isLoadingCategories = false;
+      });
+    } catch (e) {
+      print("Error loading categories: $e");
+      setState(() { _isLoadingCategories = false; });
+    }
   }
 
   @override
@@ -105,54 +185,45 @@ void _showSuccessPopup() {
 
   //Function to select categories
   void _showCategoryPicker() {
-  // List of all categories and icons
-  final Map<String, IconData> categories = {
-    "Food": Icons.restaurant,
-    "Transport": Icons.directions_car,
-    "Shopping": Icons.shopping_bag,
-    "Travel": Icons.flight,
-    "Health": Icons.medical_services,
-    "Salary": Icons.payments,
-    "Entertainment": Icons.movie,
-    "Education": Icons.school,
-    "Bills": Icons.receipt_long,
-    "Fitness": Icons.fitness_center,
-    "Gifts": Icons.card_giftcard,
-    "Savings": Icons.savings,
-    "Utilities": Icons.lightbulb,
-    "Pets": Icons.pets,
-    "Others": Icons.more_horiz,
-  };
+    // using .toUpperCase() on 'INCOME'/'EXPENSE' in database
+    final String currentType = isIncome ? 'INCOME' : 'EXPENSE';
+    final filteredCategories = _allCategories.where(
+      (c) => c.type.toUpperCase() == currentType
+    ).toList();
 
-  showModalBottomSheet(
-    context: context,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-    builder: (context) {
-      return ListView( // using ListView so the user can scroll if there are many items
-        padding: const EdgeInsets.all(20),
-        children: [
-          const Text("Select Category", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          // this Loop creates a button for every item in our map above
-          //... SPREAD OPERATOR
-          //Instead of writing 10 buttons manually, putting all categories in a list (Map).
-          // This line automatically maps (converts) each piece of data into a clickable row (ListTile).
-          ...categories.entries.map((category) => ListTile(
-            leading: Icon(category.value, color: Colors.teal),
-            title: Text(category.key),
-            onTap: () {
-              setState(() {
-                selectedCategory = category.key; // update the text
-                selectedIcon = category.value;   // update the icon
-              });
-              Navigator.pop(context); 
-            },
-          )),
-        ],
-      );
-    },
-  );
-}
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        // if the list is still empty, displaying a message
+        if (filteredCategories.isEmpty) {
+          return const SizedBox(
+            height: 200,
+            child: Center(child: Text("No categories found in database.")),
+          );
+        }
+
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Text("Select ${isIncome ? 'Income' : 'Expense'} Category", 
+                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            ...filteredCategories.map((cat) => ListTile(
+              leading: Icon(cat.getIcon(), color: Colors.teal),
+              title: Text(cat.name),
+              onTap: () {
+                setState(() {
+                  _selectedCategory = cat; 
+                });
+                Navigator.pop(context); 
+              },
+            )),
+          ],
+        );
+      },
+    );
+  }
 
 //Function to show list of accounts
 void _showAccountPicker() {
@@ -186,34 +257,74 @@ void _showAccountPicker() {
 
   Future<void> _handleSave() async {
 
-    print("Debug: Amount = '${amountController.text}', AccountID = $_selectedAccountId");
+    final String amountText = amountController.text.trim();
+    final double? enteredAmount = double.tryParse(amountText);
 
-    if (amountController.text.isEmpty || _selectedAccountId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter amount and select account")),
-      );
-      return;
-    }
-
-    final success = await _transactionService.addTransaction(
-      accountId: _selectedAccountId!,
-      categoryId: 1, 
-      type: isIncome ? 'income' : 'expense',
-      amount: double.parse(amountController.text),
-      notes: notesController.text, 
-      date: selectedDate,
-      isRecurring: selectedRecurring != "None", 
-      frequency: selectedRecurring.toLowerCase(),
+    //validation
+    if (amountText.isEmpty || enteredAmount == null || enteredAmount <= 0) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please enter a valid amount greater than 0"),
+        backgroundColor: Colors.orange,
+      ),
     );
+    return;
+  }
 
-    if (success) {
-      _showSuccessPopup();
-      Future.delayed(const Duration(seconds: 1), () => Navigator.pop(context));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to save transaction"), backgroundColor: Colors.red),
-      );
-    }
+  if (_selectedAccountId == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Please select an account")),
+    );
+    return;
+  }
+
+  if (_selectedCategory == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Please select a category")),
+    );
+    return;
+  }
+
+  //Save data
+  bool success;
+
+  if (widget.existingTransaction != null) {
+    success = await _transactionService.updateTransaction(
+      id: widget.existingTransaction!.id,
+      accountId: _selectedAccountId!,
+      categoryId: _selectedCategory!.id,
+      type: isIncome ? 'income' : 'expense',
+      amount: enteredAmount,
+      notes: notesController.text,
+      date: selectedDate,
+      isRecurring: selectedRecurring != "None",
+      frequency: selectedRecurring == "None" ? null : selectedRecurring.toLowerCase(),
+    );
+  } else {
+    success = await _transactionService.addTransaction(
+      accountId: _selectedAccountId!,
+      categoryId: _selectedCategory!.id,
+      type: isIncome ? 'income' : 'expense',
+      amount: enteredAmount,
+      notes: notesController.text,
+      date: selectedDate,
+      isRecurring: selectedRecurring != "None",
+      frequency: selectedRecurring == "None" ? null : selectedRecurring.toLowerCase(),
+    );
+  }
+
+  if (success) {
+    _showSuccessPopup();
+    Future.delayed(const Duration(seconds: 1), () => Navigator.pop(context, true));
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Failed to save transaction"),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+    
   }
 
   @override
@@ -273,8 +384,10 @@ void _showAccountPicker() {
               onTap: _showCategoryPicker, //opens the sliding menu
               child: IgnorePointer(
                 child: _buildInputField(
-                  selectedIcon,     //shows the icon we picked
-                  selectedCategory, // shows the name we picked
+                  // If a category is selected, use its icon and name
+                  // otherwise show a default icon and "Select Category" placeholder.
+                  _selectedCategory != null ? _selectedCategory!.getIcon() : Icons.category,
+                  _selectedCategory?.name ?? "Select Category", // show the name
                 ),
               ),
             ),

@@ -240,8 +240,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       // for delete action
                       onDismissed: (direction) async {
-                        await _transactionService.deleteTransaction(tx.id);
-                        _fetchHomeData();
+                        //saving data so we can restore it if delete fails
+                        var itemToRemove = _transactions[index];
+                        var position = index;
+
+                        //removing item from Ui instantly
+                        setState(() {
+                          _transactions.removeAt(index);
+                        });
+
+                        //calling backend to delete the item from database
+                        bool deleted = await _transactionService.deleteTransaction(itemToRemove.id);
+
+                        if (deleted) {
+                          //If delete successful, refreshing data
+                          _fetchHomeData();
+                        }else{
+                          //If delete fails, restoring the item back to original position
+                          setState(() {
+                            _transactions.insert(position, itemToRemove);
+                          });
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Error: Could not delete from database")),
+                          );
+                        }
                       },
 
                       child: ListTile(

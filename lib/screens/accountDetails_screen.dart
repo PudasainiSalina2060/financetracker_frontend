@@ -1,4 +1,5 @@
 import 'package:financetracker_frontend/services/account_service.dart';
+import 'package:financetracker_frontend/services/transaction_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -31,6 +32,9 @@ class _EditAccountPageState extends State<EditAccountPage> {
   final TextEditingController _balanceController = TextEditingController();
   final AccountService _accountService = AccountService();
 
+  final TransactionService _transactionService = TransactionService();
+  List<dynamic> displayList = [];
+
   @override
   void initState() {
     super.initState();
@@ -39,7 +43,23 @@ class _EditAccountPageState extends State<EditAccountPage> {
     _nameController.text = widget.accountName;
     _balanceController.text = widget.balance;
 
+    _loadAccountTransactions();
+
   }
+
+//fetch all transaction and then filter for specific account
+Future<void> _loadAccountTransactions() async {
+    try {
+      final allTrans = await _transactionService.getAllTransactions();
+      setState(() {
+        // Only keep transactions that match this specific account's Id
+        displayList = allTrans.where((t) => t.accountId == widget.accountId).toList();
+      });
+    } catch (error) {
+      print("Failed to load transactions: $error");
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
