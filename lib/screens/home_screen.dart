@@ -5,6 +5,7 @@ import 'package:financetracker_frontend/screens/addTransaction_screen.dart';
 import 'package:financetracker_frontend/screens/insights_screen.dart';
 import 'package:financetracker_frontend/screens/transactionList.dart';
 import 'package:financetracker_frontend/services/account_service.dart';
+import 'package:financetracker_frontend/services/notification_service.dart';
 import 'package:financetracker_frontend/services/transaction_service.dart';
 import 'package:financetracker_frontend/services/user_service.dart';
 import 'package:flutter/material.dart';
@@ -36,6 +37,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final UserService _userService = UserService();
   String _firstName = "User";
 
+  final NotificationService _notificationService = NotificationService();
+  int _unreadNotifCount = 0;
+  
   @override
   void initState() {
     super.initState();
@@ -60,11 +64,16 @@ class _HomeScreenState extends State<HomeScreen> {
       final transList = await _transactionService.getAllTransactions();
       final name = await _userService.getFirstName(userToken);
 
+      // fetch notifications and count how many are unread
+      final notifications = await _notificationService.getNotifications();
+      final unread = notifications.where((n) => n['is_read'] == false).length;
+
       setState(() {
         _totalBalance = balance;
         _accounts = accountsList;
         _transactions = transList;
         _firstName = name;
+        _unreadNotifCount = unread;
         _isLoading = false;
       });
     } catch (error) {
@@ -117,19 +126,41 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
 
-                      IconButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const NotificationsPage(),
+                      Stack(
+                        children: [
+                          IconButton(
+                            onPressed: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const NotificationsPage()),
+                              );
+                              _fetchHomeData(); // refresh badge count when user comes back
+                            },
+                            icon: const Icon(Icons.notifications_none_outlined, color: Colors.teal),
+                          ),
+
+                          // only show red badge if there are unread notifications
+                          if (_unreadNotifCount > 0)
+                            Positioned(
+                              right: 6,
+                              top: 6,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  _unreadNotifCount > 9 ? '9+' : '$_unreadNotifCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                             ),
-                          );
-                        },
-                        icon: const Icon(
-                          Icons.notifications_none_outlined,
-                          color: Colors.teal,
-                        ),
+                        ],
                       ),
                     ],
                   ),
