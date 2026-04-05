@@ -2,7 +2,9 @@ import 'package:financetracker_frontend/models/transaction_model.dart';
 import 'package:financetracker_frontend/screens/accountDetails_screen.dart';
 import 'package:financetracker_frontend/screens/addAccount_screen.dart';
 import 'package:financetracker_frontend/screens/addTransaction_screen.dart';
+import 'package:financetracker_frontend/screens/groupSplit_screen.dart';
 import 'package:financetracker_frontend/screens/insights_screen.dart';
+import 'package:financetracker_frontend/screens/settingsScreen.dart';
 import 'package:financetracker_frontend/screens/transactionList.dart';
 import 'package:financetracker_frontend/services/account_service.dart';
 import 'package:financetracker_frontend/services/notification_service.dart';
@@ -111,56 +113,65 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   Row(
                     children: [
-                      IconButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const InsightsPage(),
-                            ),
-                          );
-                        },
-                        icon: const Icon(
-                          Icons.analytics_outlined,
-                          color: Colors.teal,
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.teal[50],
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ),
+                        child: IconButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const InsightsPage()),
+                            );
+                          },
+                          icon: Icon(Icons.bar_chart_rounded, color: Colors.teal[700]),
+                        ),
+                      ), 
 
-                      Stack(
-                        children: [
-                          IconButton(
-                            onPressed: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const NotificationsPage()),
-                              );
-                              _fetchHomeData(); // refresh badge count when user comes back
-                            },
-                            icon: const Icon(Icons.notifications_none_outlined, color: Colors.teal),
-                          ),
+                      const SizedBox(width: 8),
 
-                          // only show red badge if there are unread notifications
-                          if (_unreadNotifCount > 0)
-                            Positioned(
-                              right: 6,
-                              top: 6,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Text(
-                                  _unreadNotifCount > 9 ? '9+' : '$_unreadNotifCount',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.teal[50],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Stack(
+                          children: [
+                            IconButton(
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const NotificationsPage()),
+                                );
+                                _fetchHomeData(); // refresh badge count when user comes back
+                              },
+                              icon: const Icon(Icons.notifications_none_outlined, color: Colors.teal),
+                            ),
+                        
+                            // only show red badge if there are unread notifications
+                            if (_unreadNotifCount > 0)
+                              Positioned(
+                                right: 6,
+                                top: 6,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    _unreadNotifCount > 9 ? '9+' : '$_unreadNotifCount',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -174,24 +185,34 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(25),
                 decoration: BoxDecoration(
-                  color: Colors.teal[700],
-                  borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  colors: [Colors.teal[800]!, Colors.teal[400]!],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                borderRadius: BorderRadius.circular(20),
+              ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Text(
-                      "Total balance",
-                      style: TextStyle(color: Colors.white70, fontSize: 16),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      "NPR ${_totalBalance.toStringAsFixed(2)}",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Total balance",
+                          style: TextStyle(color: Colors.white70, fontSize: 16),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          "NPR ${_totalBalance.toStringAsFixed(2)}",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -206,8 +227,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     "Accounts",
                     style: GoogleFonts.karma(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 20,
                     ),
                   ),
                   // CLICKABLE: Add Account text
@@ -251,7 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 : acc['type']?.toString().toUpperCase() ==
                                       'CARD'
                                 ? Icons.credit_card
-                                : Icons.payments_outlined,
+                                :Icons.payments_outlined,
                             acc['account_id'],
                             acc['type'] ?? 'CASH',
                           );
@@ -269,7 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     "Recent Transactions",
                     style: GoogleFonts.karma(
                       fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                   // CLICKABLE: See all text
@@ -362,7 +383,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: transactionItem(
                                 title: tx.categoryName,
                                 subtitle: "${tx.accountName} • ${tx.notes}",
-                                amount: "${tx.type == 'income' ? '+' : '-'} NPR ${tx.amount}",
+                                amount: "${tx.type == 'income' ? '+' : '-'} NPR ${double.tryParse(tx.amount.toString())?.toStringAsFixed(2) ?? tx.amount}",
                                 isIncome: tx.type == 'income',
                                 icon: tx.type == 'income' ? Icons.add : Icons.remove,
                               ),
@@ -391,40 +412,70 @@ class _HomeScreenState extends State<HomeScreen> {
             _fetchHomeData();
           }
         },
-        backgroundColor: Colors.white,
-        elevation: 4,
+        backgroundColor: Colors.teal[700],
+        elevation: 6,
         shape: const CircleBorder(),
-        child: const Icon(Icons.add, color: Colors.teal, size: 35),
+        child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
       // Custom Bottom Navigation Bar with a cutout (notch) for the floating button
       bottomNavigationBar: BottomAppBar(
         height: 70,
-        notchMargin: 10,
+        notchMargin: 8,
         shape: const CircularNotchedRectangle(),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            IconButton(
-              icon: const Icon(Icons.home, color: Colors.teal),
-              onPressed: () {},
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                  Icon(Icons.home_outlined, color: Colors.teal, size: 28),
+                  Text("Home", style: TextStyle(fontSize: 10, color: Colors.teal)),
+              ],
             ),
 
-            IconButton(
-              icon: const Icon(Icons.receipt_long),
-              onPressed: () {
-                // Navigate to the Budget Summary Page
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const BudgetPage()),
-                );
-              },
+           GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const BudgetPage()),
+              );
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.receipt_long_outlined, color: const Color.fromARGB(255, 155, 161, 160), size: 28),
+                Text("Budget", style: TextStyle(fontSize: 10)),
+              ],
             ),
+          ),
 
-            const SizedBox(width: 40), // Space for the floating button
-            IconButton(icon: const Icon(Icons.group), onPressed: () {}),
-            IconButton(icon: const Icon(Icons.person), onPressed: () {}),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const GroupsScreen()));
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.groups_2_outlined, color: const Color.fromARGB(255, 155, 161, 160), size: 28),
+                Text("Split", style: TextStyle(fontSize: 10)),
+              ],
+            ),
+          ),
+
+          GestureDetector(
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.person_outlined, color: const Color.fromARGB(255, 155, 161, 160), size: 28),
+                Text("Profile", style: TextStyle(fontSize: 10)),
+              ],
+            ),
+          ),
           ],
         ),
       ),
@@ -459,11 +510,16 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         borderRadius: BorderRadius.circular(15),
         child: Container(
-          padding: const EdgeInsets.all(15),
-          width: 110,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          width: 120,
+          height: 120,
           decoration: BoxDecoration(
             color: Colors.teal[50],
             borderRadius: BorderRadius.circular(15),
+            border: Border.all(
+              color: Colors.teal.withOpacity(0.3),
+              width: 1.5,
+            ),
           ),
           child: Column(
             children: [
@@ -471,7 +527,10 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 10),
               Text(
                 title,
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
               Text(
                 amount,
