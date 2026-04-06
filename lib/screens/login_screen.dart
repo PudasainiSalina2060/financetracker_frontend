@@ -1,3 +1,4 @@
+import 'package:financetracker_frontend/screens/forgotPassword_screen.dart';
 import 'package:financetracker_frontend/screens/home_screen.dart';
 import 'package:financetracker_frontend/services/auth_service.dart';
 import 'package:flutter/material.dart';
@@ -135,9 +136,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       SizedBox(height: 8),
 
-                      // Forgot Password button text
+                      //forgot Password button text
                       Align(
                         alignment: Alignment.centerRight,
+                        child: GestureDetector( 
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ForgotPasswordScreen(),
+                              ),
+                            );
+                          },
                         child: Text(
                           'Forgot Password?',
                           style: TextStyle(
@@ -146,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-
+                    ),
                       SizedBox(height: 30),
 
                       // LOGIN button
