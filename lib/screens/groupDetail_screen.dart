@@ -1,3 +1,4 @@
+import 'package:financetracker_frontend/screens/contact_picker_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/group_model.dart';
@@ -91,6 +92,41 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            // Pick from contacts button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  //open contact picker screen
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ContactPickerScreen(),
+                    ),
+                  );
+
+                  //if user picked a contact fill name and phone fields
+                  if (result != null) {
+                    _nameController.text = result['name'];
+                    _phoneController.text = result['phone'];
+                  }
+                },
+                icon: Icon(Icons.contacts_outlined, color: Colors.teal[600]),
+                label: Text(
+                  'Pick from Contacts',
+                  style: GoogleFonts.inika(color: Colors.teal[600]),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: Colors.teal[600]!),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+
+
           ],
         ),
         actions: [
