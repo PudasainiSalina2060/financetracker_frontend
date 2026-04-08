@@ -1,4 +1,5 @@
 import 'package:financetracker_frontend/screens/home_screen.dart';
+import 'package:financetracker_frontend/screens/otp_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:financetracker_frontend/services/auth_service.dart';
@@ -221,7 +222,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     //Move to Home and remove the Signup screen from history
                                     Navigator.push(
                                       context,
-                                      MaterialPageRoute( builder: (context) => const HomeScreen()),
+                                      MaterialPageRoute( builder: (context) => OtpScreen(email: _emailController.text.trim()),
+                                      ),
                                 );
                               }else {
                                 //displaying an error in case if email exists or backend fails
