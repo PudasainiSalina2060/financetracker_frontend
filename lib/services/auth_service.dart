@@ -29,7 +29,7 @@ class AuthService {
       );
  
       if (response.statusCode == 201 || response.statusCode == 200) {
-        print("Success: Account created!");
+        print("OTP sent to email");
         return true;
       } else {
         print("Error from backend: ${response.body}");
@@ -40,6 +40,22 @@ class AuthService {
       return false;
     }
   }
+  //Function to Verify OTP after registration
+    Future<bool> verifyOtp(String email, String otp) async {
+      try {
+        final response = await http.post(
+          Uri.parse('$baseUrl/api/verify-otp'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': email, 'otp': otp}),
+        );
+
+        return response.statusCode == 200;
+
+      } catch (error) {
+        print("OTP verify error: $error");
+        return false;
+      }
+    }
 
   //Function to login a user 
 

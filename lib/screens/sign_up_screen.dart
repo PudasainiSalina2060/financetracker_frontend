@@ -1,4 +1,3 @@
-import 'package:financetracker_frontend/screens/home_screen.dart';
 import 'package:financetracker_frontend/screens/otp_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -214,12 +213,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     //if backend says ok, display a success message
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text("Account created successfully!"),
+                                        content: Text("OTP sent! Please verify your email."),
                                         backgroundColor: Colors.green,
                                       ),
                                     );
 
-                                    //Move to Home and remove the Signup screen from history
+                                    //Navigate to OTP screen
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute( builder: (context) => OtpScreen(email: _emailController.text.trim()),
