@@ -14,7 +14,7 @@ class ResetPasswordScreen extends StatefulWidget {
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
-  final TextEditingController _tokenController = TextEditingController();
+  final TextEditingController _otpController = TextEditingController();
   final TextEditingController _newPasswordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
@@ -73,7 +73,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       // INSTRUCTION
                       Center(
                         child: Text(
-                          "Copy the token from the reset link in your email and paste it below.",
+                          "OTP sent to ${widget.email}",
                           textAlign: TextAlign.center,
                           style: GoogleFonts.inika(
                             fontSize: 14,
@@ -85,7 +85,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       const SizedBox(height: 30),
 
                       // TOKEN FIELD
-                      Text('Reset Token', style: GoogleFonts.inika(fontSize: 16, color: Colors.black87)),
+                      Text('Enter OTP', style: GoogleFonts.inika(fontSize: 16, color: Colors.black87)),
                       const SizedBox(height: 8),
                       Container(
                         decoration: BoxDecoration(
@@ -95,10 +95,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         child: Padding(
                           padding: const EdgeInsets.only(left: 20.0),
                           child: TextField(
-                            controller: _tokenController,
+                            controller: _otpController,
                             decoration: const InputDecoration(
                               border: InputBorder.none,
-                              hintText: 'Paste token here',
+                              hintText: '6-digit OTP',
                               hintStyle: TextStyle(color: Colors.black54),
                             ),
                           ),
@@ -165,12 +165,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                             onPressed: _isLoading
                                 ? null
                                 : () async {
-                                    String token = _tokenController.text.trim();
+                                    String otp = _otpController.text.trim();
                                     String newPassword = _newPasswordController.text.trim();
                                     String confirmPassword = _confirmPasswordController.text.trim();
 
                                     // basic validations
-                                    if (token.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
+                                    if (otp.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(
                                           content: Text("Please fill all fields"),
@@ -195,7 +195,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                     // call backend
                                     bool success = await _authService.resetPassword(
                                       email: widget.email, //email passed from previous screen
-                                      token: token,
+                                      token: otp,
                                       newPassword: newPassword,
                                     );
 
@@ -219,7 +219,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                     } else {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(
-                                          content: Text("Invalid or expired token. Try again."),
+                                          content: Text("Invalid or expired OTP. Try again."),
                                           backgroundColor: Colors.red,
                                         ),
                                       );

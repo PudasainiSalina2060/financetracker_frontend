@@ -90,6 +90,8 @@ class AuthService {
         //Storing the JWT so the user stays logged in
         await _storage.write(key: 'accessToken', value: data['accessToken']);
         await _storage.write(key: 'refreshToken', value: data['refreshToken']);
+        //saving email
+        await _storage.write(key: 'userEmail', value: email);
 
         print("Login success & tokens saved!");
         
@@ -163,4 +165,54 @@ class AuthService {
       return null;
     }
   }
+  //Sends email for forgot password
+  Future<String?> forgotPassword(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/forgotpassword'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        //returns database registered email
+        return data['email'] as String?; 
+      } else {
+        print("Forgot password failed: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      print("Forgot password error: $e");
+      return null;
+    }
+  }
+  //Resets password using token from email
+  Future<bool> resetPassword({
+    required String email,
+    required String token,
+    required String newPassword,
+    }) async {
+      try {
+        final response = await http.post(
+          Uri.parse('$baseUrl/api/resetpassword'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'email': email,
+            'token': token,
+            'newPassword': newPassword,
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          return true;
+        } else {
+          print("Reset password failed: ${response.body}");
+          return false;
+        }
+      } catch (e) {
+        print("Reset password error: $e");
+        return false;
+      }
+    }
 }

@@ -1,5 +1,6 @@
 import 'package:financetracker_frontend/screens/resetPassword_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:financetracker_frontend/services/auth_service.dart';
 
@@ -18,6 +19,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final AuthService _authService = AuthService();
 
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedEmail();
+  }
+
+  Future<void> _loadSavedEmail() async {
+    final AuthService auth = AuthService();
+    // read from same secure storage
+    final storage = const FlutterSecureStorage();
+    final savedEmail = await storage.read(key: 'userEmail');
+    if (savedEmail != null) {
+      setState(() {
+        _emailController.text = savedEmail;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -134,11 +153,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                     setState(() => _isLoading = true);
 
                                     // call the backend
-                                    bool success = await _authService.forgotPassword(email);
+                                    String? registeredEmail = await _authService.forgotPassword(email);
 
                                     setState(() => _isLoading = false);
 
-                                    if (success) {
+                                    if (registeredEmail != null) {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(
                                           content: Text("Reset email sent! Check your inbox."),
@@ -150,7 +169,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => ResetPasswordScreen(email: email),
+                                          builder: (context) => ResetPasswordScreen(email: registeredEmail),
                                         ),
                                       );
 
