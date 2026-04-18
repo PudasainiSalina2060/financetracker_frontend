@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 //handles API calls for notifications
 class NotificationService {
@@ -78,6 +79,29 @@ class NotificationService {
     } catch (error) {
       print("Error deleting notification: $error");
       return false;
+    }
+  }
+
+  //saves phones FCM token to backend so server can send push notifications
+  Future<void> saveFcmToken() async {
+    try {
+      // get this phone's unique token from Firebase
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken == null) return;
+
+      // check if user is logged in
+      final accessToken = await _storage.read(key: 'accessToken');
+      if (accessToken == null) return; //not logged in yet, skip
+
+      await http.post(
+        Uri.parse('$baseUrl/api/notifications/save-token'),
+        headers: await _getAuthHeaders(),
+        body: jsonEncode({'fcm_token': fcmToken}),
+      );
+
+      print("FCM token saved successfully");
+    } catch (error) {
+      print("Error saving FCM token: $error");
     }
   }
 }

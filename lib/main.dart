@@ -4,11 +4,15 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:financetracker_frontend/api_test.dart';
+import 'package:financetracker_frontend/services/notification_service.dart';
+
 void main() async {
 
 // Initializing Firebase before running the app
   WidgetsFlutterBinding.ensureInitialized(); 
   await Firebase.initializeApp();
+
+   await NotificationService().saveFcmToken();
 
   ConnectionTest.checkServer();
 
