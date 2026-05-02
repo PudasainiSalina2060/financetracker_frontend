@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -24,6 +25,8 @@ class InsightService {
       );
       if (response.statusCode == 200) return jsonDecode(response.body);
       return {};
+    }on SocketException{
+      rethrow;
     } catch (error) {
       print("getSummary error: $error");
       return {};
@@ -39,7 +42,9 @@ class InsightService {
       );
       if (response.statusCode == 200) return jsonDecode(response.body);
       return {"categories": [], "totalExpense": 0};
-    } catch (error) {
+    } on SocketException {
+      rethrow;
+    }catch (error) {
       print("getCategoryBreakdown error: $error");
       return {"categories": [], "totalExpense": 0};
     }
@@ -54,6 +59,8 @@ class InsightService {
       );
       if (response.statusCode == 200) return jsonDecode(response.body);
       return [];
+    } on SocketException{
+      rethrow;
     } catch (error) {
       print("getIncomeVsExpense error: $error");
       return [];
@@ -69,6 +76,8 @@ class InsightService {
       );
       if (response.statusCode == 200) return jsonDecode(response.body);
       return [];
+    } on SocketException{
+      rethrow;
     } catch (error) {
       print("getSpendingTrend error: $error");
       return [];
@@ -84,6 +93,8 @@ class InsightService {
       );
       if (response.statusCode == 200) return jsonDecode(response.body);
       return [];
+    } on SocketException{
+      rethrow;
     } catch (error) {
       print("getBudgetUtilization error: $error");
       return [];

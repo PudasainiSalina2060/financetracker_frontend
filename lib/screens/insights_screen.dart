@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../services/insight_service.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 //fixed color palette : used when category has no color in database
 //even if the backend doesn't provide specific color codes
@@ -57,6 +58,8 @@ class _InsightsPageState extends State<InsightsPage> {
   final InsightService _service = InsightService();
   bool isLoading = true;
 
+  bool isOffline = false;
+
   //state variables for analytics data
   double totalIncome = 0;
   double totalExpense = 0;
@@ -84,6 +87,21 @@ class _InsightsPageState extends State<InsightsPage> {
 //using Future.wait to execute all API calls concurrently,
 
   Future<void> _loadAll() async {
+
+    // Check connectivity first, internet available or not
+      final connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        setState(() {
+          isOffline = true;
+          isLoading = false;
+        });
+        return;
+      }
+
+      // if internet back reset offline state and fetch
+      setState(() => isOffline = false);
+
+
     try {
       // Fetching all 5 endpoints at the same time
       final results = await Future.wait([
@@ -111,11 +129,21 @@ class _InsightsPageState extends State<InsightsPage> {
       budgetData = results[4] as List<dynamic>;
 
       setState(() => isLoading = false);
-    } catch (error) {
-      print("_loadAll error: $error");
+    } on Exception catch (e) {
+      if(e.toString().contains('SocketException') ||
+         e.toString().contains('Network is unreachable') ||
+         e.toString().contains('Connection failed')) {
+      setState(() {
+        isOffline = true;
+        isLoading = false;
+      });
+    } else{
+      print("_loadAll error: $e");
       setState(() => isLoading = false);
+      }
     }
   }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -152,46 +180,48 @@ class _InsightsPageState extends State<InsightsPage> {
                 ? const Center(
                     child: CircularProgressIndicator(color: Color(0xFF009688)),
                   )
-                : RefreshIndicator(
-                    color: const Color(0xFF009688),
-                    onRefresh: _loadAll,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 30),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSummaryCards(),
-                          const SizedBox(height: 16),
+                  :isOffline 
+                    ? _buildOfflineView()
+                    : RefreshIndicator(
+                        color: const Color(0xFF009688),
+                        onRefresh: _loadAll,
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(20, 4, 20, 30),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSummaryCards(),
+                              const SizedBox(height: 16),
 
-                          _buildCard(child: _buildDonutChart()),
-                          const SizedBox(height: 16),
+                              _buildCard(child: _buildDonutChart()),
+                              const SizedBox(height: 16),
 
-                          categories.isNotEmpty
-                              ? _buildCard(child: _buildTopSpending())
-                              : _buildEmptyCard("No spending data for this period"),
-                          const SizedBox(height: 16),
+                              categories.isNotEmpty
+                                  ? _buildCard(child: _buildTopSpending())
+                                  : _buildEmptyCard("No spending data for this period"),
+                              const SizedBox(height: 16),
 
-                          if (barData.isNotEmpty)
-                            _buildCard(child: _buildBarChart()),
-                          const SizedBox(height: 16),
+                              if (barData.isNotEmpty)
+                                _buildCard(child: _buildBarChart()),
+                              const SizedBox(height: 16),
 
-                          if (trendData.isNotEmpty)
-                            _buildCard(child: _buildLineChart()),
-                          const SizedBox(height: 16),
+                              if (trendData.isNotEmpty)
+                                _buildCard(child: _buildLineChart()),
+                              const SizedBox(height: 16),
 
-                          budgetData.isNotEmpty
-                              ? _buildCard(child: _buildBudgetBars())
-                              : _buildEmptyCard("No budgets set yet"),
-                        ],
+                              budgetData.isNotEmpty
+                                  ? _buildCard(child: _buildBudgetBars())
+                                  : _buildEmptyCard("No budgets set yet"),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
+        );
+      }
 
   //For period tabs
   Widget _buildPeriodTabs() {
@@ -259,6 +289,54 @@ class _InsightsPageState extends State<InsightsPage> {
       ),
     );
   }
+
+  //Display for offline mode view
+  Widget _buildOfflineView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.wifi_off_rounded, size: 72, color: Colors.grey),
+            const SizedBox(height: 20),
+            Text(
+              "You're Offline",
+              style: GoogleFonts.karma(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              "Connect to the internet to see your insights.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 28),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() => isLoading = true);
+                _loadAll();
+              },
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text("Try Again"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF009688),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   //Summary Cards (Grid Layout)
   Widget _buildSummaryCards() {
