@@ -16,13 +16,15 @@ class _BudgetPageState extends State<BudgetPage> {
   String selectedPeriod = 'Monthly';
 
   bool _isLoading = true;
+  bool _isOffline = false;
+
   double _totalLimit = 0;
   double _totalSpent = 0;
   double _remaining = 0;
   double _overallPercent = 0;
   List<dynamic> _categories = [];
 
-//for loading real data while opening page
+  //for loading real data while opening page
   @override
   void initState() {
     super.initState();
@@ -31,27 +33,52 @@ class _BudgetPageState extends State<BudgetPage> {
 
   final BudgetService _budgetService = BudgetService();
 
-//fetching real data
+  //fetching real data
   Future<void> _fetchBudgets() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _isOffline = false;
+    });
     try {
       final data = await _budgetService.getBudgets(
         period: selectedPeriod.toLowerCase(),
       );
+      print("Budget data: $data");
 
-      if (data.isNotEmpty) {
-        final summary = data['summary'];
+      final summary = data['summary'];
 
-        setState(() {
-          _totalLimit = (summary['totalLimit'] ?? 0).toDouble();
-          _totalSpent = (summary['totalSpentOverall'] ?? 0).toDouble();
-          _remaining = (summary['remainingOverall'] ?? 0).toDouble();
-          _overallPercent = double.tryParse(summary['overallPercentage'].toString()) ?? 0;
-          _categories = data['categories'] ?? [];
-        });
+      setState(() {
+        _totalLimit = (summary['totalLimit'] ?? 0).toDouble();
+        _totalSpent = (summary['totalSpentOverall'] ?? 0).toDouble();
+        _remaining = (summary['remainingOverall'] ?? 0).toDouble();
+        _overallPercent = double.tryParse(summary['overallPercentage'].toString()) ?? 0;
+        _categories = data['categories'] ?? [];
+      });
+  } catch (e) {
+
+    // API failed -> load SQLite budgets
+    print("Offline: loading budgets from SQLite");
+
+    try {
+      final cached = await _budgetService.getLocalBudgets(
+        period: selectedPeriod.toLowerCase(),
+      );
+
+      final summary = cached['summary'];
+
+      setState(() {
+        _isOffline = true;
+
+        _totalLimit = (summary['totalLimit'] ?? 0).toDouble();
+        _totalSpent = (summary['totalSpentOverall'] ?? 0).toDouble();
+        _remaining = (summary['remainingOverall'] ?? 0).toDouble();
+        _overallPercent = double.tryParse(summary['overallPercentage'].toString()) ?? 0;
+        _categories = cached['categories'] ?? [];
+      });
+
+    } catch (e2) {
+        setState(() => _isOffline = true);
       }
-    } catch (error) {
-      print("Error fetching budgets: $error");
     } finally {
       setState(() => _isLoading = false);
     }
@@ -67,7 +94,7 @@ class _BudgetPageState extends State<BudgetPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100], 
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -78,155 +105,190 @@ class _BudgetPageState extends State<BudgetPage> {
         ),
       ),
 
-      
       body: _isLoading
-      ? const Center(child: CircularProgressIndicator())
-      :SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 10),
-              //For header :Budget Overview
-              Text(
-                'Budget Overview',
-                style: GoogleFonts.karma(
-                  color: Colors.black, 
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                '$selectedPeriod Budget',
-                style: const TextStyle(color: Colors.grey, fontSize: 16),
-              ),
-              const SizedBox(height: 20),
-
-              //For toggle buttons (weekly or monthly)
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.green[100], 
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    _buildToggleButton('Weekly'),
-                    _buildToggleButton('Monthly'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 40),
-
-              //for circular progress ring (how much percent budget spent)
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  SizedBox(
-                    height: 180,
-                    width: 180,
-                    child: CircularProgressIndicator(
-                      value: (_overallPercent / 100).clamp(0.0, 1.0), // 75% spent (Summary logic from backend)
-                      strokeWidth: 15,
-                      backgroundColor: Colors.green[50], // Lighter background for the ring
-                      color: Colors.orange,
-                    ),
-                  ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(('${_overallPercent.toStringAsFixed(1)}%'), style: TextStyle(color: Colors.black, fontSize: 32, fontWeight: FontWeight.bold)),
-                      Text('NPR ${_totalSpent.toStringAsFixed(0)}', style: GoogleFonts.ibmPlexSerif(color: Colors.black, fontSize: 18)),
-                      const Text('Spent', style: TextStyle(color: Colors.grey)),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 30),
-
-              // For total budget and remaining amount box
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.green[50], 
-                  borderRadius: BorderRadius.circular(16),
-                ),
+          ? const Center(child: CircularProgressIndicator())
+          : _isOffline
+          ? _buildOfflineView()
+          : SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: Column(
                   children: [
-                    _buildSummaryRow('Total Budget:', 'NPR ${_totalLimit.toStringAsFixed(0)}', Colors.black54),
-                    const Divider(color: Colors.black12, height: 25),
-                    _buildSummaryRow('Remaining:', 'NPR ${_remaining.toStringAsFixed(0)}', Colors.black, isBold: true),
+                    const SizedBox(height: 10),
+                    //For header :Budget Overview
+                    Text(
+                      'Budget Overview',
+                      style: GoogleFonts.karma(
+                        color: Colors.black,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '$selectedPeriod Budget',
+                      style: const TextStyle(color: Colors.grey, fontSize: 16),
+                    ),
+                    const SizedBox(height: 20),
+
+                    //For toggle buttons (weekly or monthly)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.green[100],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          _buildToggleButton('Weekly'),
+                          _buildToggleButton('Monthly'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+
+                    //for circular progress ring (how much percent budget spent)
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          height: 180,
+                          width: 180,
+                          child: CircularProgressIndicator(
+                            value: (_overallPercent / 100).clamp(
+                              0.0,
+                              1.0,
+                            ), // 75% spent (Summary logic from backend)
+                            strokeWidth: 15,
+                            backgroundColor: Colors
+                                .green[50], // Lighter background for the ring
+                            color: Colors.orange,
+                          ),
+                        ),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              ('${_overallPercent.toStringAsFixed(1)}%'),
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'NPR ${_totalSpent.toStringAsFixed(0)}',
+                              style: GoogleFonts.ibmPlexSerif(
+                                color: Colors.black,
+                                fontSize: 18,
+                              ),
+                            ),
+                            const Text(
+                              'Spent',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+
+                    // For total budget and remaining amount box
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildSummaryRow(
+                            'Total Budget:',
+                            'NPR ${_totalLimit.toStringAsFixed(0)}',
+                            Colors.black54,
+                          ),
+                          const Divider(color: Colors.black12, height: 25),
+                          _buildSummaryRow(
+                            'Remaining:',
+                            'NPR ${_remaining.toStringAsFixed(0)}',
+                            Colors.black,
+                            isBold: true,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+
+                    //category wise budget spending list
+                    _categories.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No budgets set yet. Tap + to add one.',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _categories.length,
+                            itemBuilder: (context, index) {
+                              final cat = _categories[index];
+
+                              final pct =
+                                  double.tryParse(
+                                    cat['percentage'].toString().replaceAll(
+                                      '%',
+                                      '',
+                                    ),
+                                  ) ??
+                                  0;
+
+                              final details =
+                                  'NPR ${cat["spent"]} / ${cat["limit"]}';
+                              //to get the actual limit amount
+                              final limit = (cat['limit'] ?? 0).toDouble();
+
+                              return _buildCategoryProgress(
+                                cat['category'],
+                                pct / 100,
+                                details,
+                                _barColor(pct),
+                                cat['budget_id'] ?? 0,
+                                limit,
+                                showWarning: pct >= 80 && pct < 100,
+                                isOver: pct >= 100,
+                              );
+                            },
+                          ),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
-              const SizedBox(height: 30),
-
-              //category wise budget spending list
-              _categories.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No budgets set yet. Tap + to add one.',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  )
-                : ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _categories.length,
-                  itemBuilder: (context, index) {
-                    final cat = _categories[index];
-
-                    final pct = double.tryParse(
-                      cat['percentage'].toString().replaceAll('%', ''),
-                    ) ?? 0;
-
-                    final details = 'NPR ${cat["spent"]} / ${cat["limit"]}';
-                    //to get the actual limit amount
-                    final limit = (cat['limit'] ?? 0).toDouble();
-
-                    return _buildCategoryProgress(
-                      cat['category'],
-                      pct / 100,
-                      details,
-                      _barColor(pct),
-                      cat['budget_id'] ?? 0,  
-                      limit,   
-                      showWarning: pct >= 80 && pct < 100,
-                      isOver: pct >= 100,
-                    );
-                  },
-                ),
-                const SizedBox(height: 20)
-            ],
-          ),
-        ),
-      ),
+            ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.teal,
-        onPressed: () async{
+        onPressed: () async {
           final result = await Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => const AddBudgetScreen(),
-              ),
-            );
-            if (result == true) {
-              _fetchBudgets();
-            }
-          },
-          child: const Icon(Icons.add, color: Colors.white),
-        ),
-      );
+            MaterialPageRoute(builder: (context) => const AddBudgetScreen()),
+          );
+          if (result == true) {
+            _fetchBudgets();
+          }
+        },
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
   }
 
-// Function to build the Weekly/Monthly toggle buttons
+  // Function to build the Weekly/Monthly toggle buttons
   Widget _buildToggleButton(String title) {
     bool isActive = selectedPeriod == title;
     return Expanded(
       child: GestureDetector(
-        onTap: () { 
+        onTap: () {
           setState(() => selectedPeriod = title);
-          _fetchBudgets();},
+          _fetchBudgets();
+        },
 
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -248,13 +310,21 @@ class _BudgetPageState extends State<BudgetPage> {
     );
   }
 
-//function to create a simple row showing two pieces of text (Title and Amount)
-//used for the total budget and remaining amount box
-  Widget _buildSummaryRow(String title, String amount, Color amountColor, {bool isBold = false}) {
+  //function to create a simple row showing two pieces of text (Title and Amount)
+  //used for the total budget and remaining amount box
+  Widget _buildSummaryRow(
+    String title,
+    String amount,
+    Color amountColor, {
+    bool isBold = false,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(title, style: const TextStyle(color: Colors.black54, fontSize: 16)),
+        Text(
+          title,
+          style: const TextStyle(color: Colors.black54, fontSize: 16),
+        ),
         Text(
           amount,
           style: TextStyle(
@@ -266,24 +336,183 @@ class _BudgetPageState extends State<BudgetPage> {
       ],
     );
   }
+  Widget _buildOfflineView() {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
 
-// function to build individual category progress bars
-  Widget _buildCategoryProgress(String name, double percent, String details, Color color, int budgetId, double limit, {bool showWarning = false, bool isOver = false}) {
+            // header
+            Text('Budget Overview',
+              style: GoogleFonts.karma(
+                color: Colors.black, fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Text('$selectedPeriod Budget',
+              style: const TextStyle(color: Colors.grey, fontSize: 16)),
+            const SizedBox(height: 20),
+
+            //toggle weekly and monthly
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.green[100],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(children: [
+                _buildToggleButton('Weekly'),
+                _buildToggleButton('Monthly'),
+              ]),
+            ),
+            const SizedBox(height: 20),
+
+            //orange offline banner
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.wifi_off_rounded, color: Colors.orange[700], size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "You're offline. Showing cached data.",
+                      style: TextStyle(color: Colors.orange[800], fontSize: 13),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _fetchBudgets,
+                    child: Text('Retry',
+                      style: TextStyle(color: Colors.orange[700])),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // circular progress indicator with local calculation
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  height: 180,
+                  width: 180,
+                  child: CircularProgressIndicator(
+                    value: (_overallPercent / 100).clamp(0.0, 1.0),
+                    strokeWidth: 15,
+                    backgroundColor: Colors.green[50],
+                    color: Colors.orange,
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('${_overallPercent.toStringAsFixed(1)}%',
+                      style: const TextStyle(
+                        fontSize: 32, fontWeight: FontWeight.bold)),
+                    Text('NPR ${_totalSpent.toStringAsFixed(0)}',
+                      style: GoogleFonts.ibmPlexSerif(fontSize: 18)),
+                    const Text('Spent',
+                      style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 30),
+
+            // total budget and remaining amount box
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  _buildSummaryRow('Total Budget:',
+                    'NPR ${_totalLimit.toStringAsFixed(0)}', Colors.black54),
+                  const Divider(color: Colors.black12, height: 25),
+                  _buildSummaryRow('Remaining:',
+                    'NPR ${_remaining.toStringAsFixed(0)}', Colors.black,
+                    isBold: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: 30),
+
+            // category progress bars from SQLite
+            _categories.isEmpty
+                ? const Center(
+                    child: Text('No cached budgets.',
+                      style: TextStyle(color: Colors.grey)))
+                : ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _categories.length,
+                    itemBuilder: (context, index) {
+                      final cat = _categories[index];
+                      final pct = double.tryParse(
+                        cat['percentage'].toString().replaceAll('%', ''),
+                      ) ?? 0;
+                      final details = 'NPR ${cat["spent"]} / ${cat["limit"]}';
+                      final limit = (cat['limit'] ?? 0).toDouble();
+
+                      return _buildCategoryProgress(
+                        cat['category'],
+                        pct / 100,
+                        details,
+                        _barColor(pct),
+                        cat['budget_id'] ?? 0,
+                        limit,
+                        showWarning: pct >= 80 && pct < 100,
+                        isOver: pct >= 100,
+                      );
+                    },
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // function to build individual category progress bars
+  Widget _buildCategoryProgress(
+    String name,
+    double percent,
+    String details,
+    Color color,
+    int budgetId,
+    double limit, {
+    bool showWarning = false,
+    bool isOver = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 25.0),
       child: Column(
         children: [
           //row for category name and percentage text
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,  //spreads left and right
+            mainAxisAlignment:
+                MainAxisAlignment.spaceBetween, //spreads left and right
             children: [
               // Category name on the left
-              Text(name, style: const TextStyle(color: Colors.black, fontSize: 16)),
-              
-              // Percent + delete icon on the RIGHT
+              Text(
+                name,
+                style: const TextStyle(color: Colors.black, fontSize: 16),
+              ),
+
+              // Percent and a  delete icon on the RIGHT
               Row(
                 children: [
-                  Text('${(percent * 100).toInt()}%', style: const TextStyle(color: Colors.grey)),
+                  Text(
+                    '${(percent * 100).toInt()}%',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                   const SizedBox(width: 8),
 
                   //Edit button
@@ -302,7 +531,11 @@ class _BudgetPageState extends State<BudgetPage> {
                       );
                       if (result == true) _fetchBudgets();
                     },
-                    child: const Icon(Icons.edit_outlined, color: Colors.teal, size: 18),
+                    child: const Icon(
+                      Icons.edit_outlined,
+                      color: Colors.teal,
+                      size: 18,
+                    ),
                   ),
 
                   const SizedBox(width: 6),
@@ -321,17 +554,37 @@ class _BudgetPageState extends State<BudgetPage> {
                             ),
                             TextButton(
                               onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                              child: const Text(
+                                'Delete',
+                                style: TextStyle(color: Colors.red),
+                              ),
                             ),
                           ],
                         ),
                       );
+
+                      //delete budget only when internet is available
                       if (confirm == true) {
-                        await _budgetService.deleteBudget(budgetId);
-                        _fetchBudgets();
+                        final success = await _budgetService.deleteBudget(budgetId);
+                        //show warning if delete fails offline
+                        if (!success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Delete requires internet connection'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                        } else {
+                          //refresh budget list after successful delete
+                          _fetchBudgets();
+                        }
                       }
                     },
-                    child: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                    child: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.red,
+                      size: 18,
+                    ),
                   ),
                 ],
               ),
@@ -353,10 +606,19 @@ class _BudgetPageState extends State<BudgetPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Text(details, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-              if (showWarning) const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 16),
+              Text(
+                details,
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+              if (showWarning)
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.amber,
+                  size: 16,
+                ),
               //only shows the error icon if user is Over Budget (isOver = true)
-              if (isOver) const Icon(Icons.error_outline, color: Colors.red, size: 16),
+              if (isOver)
+                const Icon(Icons.error_outline, color: Colors.red, size: 16),
             ],
           ),
         ],
