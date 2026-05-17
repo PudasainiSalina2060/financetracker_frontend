@@ -5,28 +5,23 @@ import 'package:path_provider/path_provider.dart';
 class LocalDB {
   static Database? _database;
 
- //Get database (create once, reuse)
+  //Get database (create once, reuse)
   static Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDB();
     return _database!;
   }
 
- // Opening database file
+  // Opening database file
   static Future<Database> _initDB() async {
     final dir = await getApplicationDocumentsDirectory();
     final dbPath = join(dir.path, 'financetracker.db');
 
-    return await openDatabase(
-      dbPath,
-      version: 1,
-      onCreate: _createTables,
-    );
+    return await openDatabase(dbPath, version: 1, onCreate: _createTables);
   }
 
   //Create tables (runs first time only)
   static Future<void> _createTables(Database db, int version) async {
-
     //Accounts
     await db.execute('''
       CREATE TABLE accounts (
@@ -87,6 +82,7 @@ class LocalDB {
         budget_id       INTEGER PRIMARY KEY,
         user_id         INTEGER NOT NULL,
         category_id     INTEGER NOT NULL,
+        category_name   TEXT NOT NULL,
         limit_amount    REAL NOT NULL,
         period          TEXT NOT NULL,
         start_date      TEXT NOT NULL,
@@ -105,7 +101,6 @@ class LocalDB {
         created_at  TEXT
       )
     ''');
-
 
     //Group members
     await db.execute('''
@@ -186,7 +181,7 @@ class LocalDB {
   static Future<void> checkTables() async {
     final db = await database;
     final tables = await db.rawQuery(
-      "SELECT name FROM sqlite_master WHERE type='table'"
+      "SELECT name FROM sqlite_master WHERE type='table'",
     );
     for (var table in tables) {
       print("${table['name']}");
