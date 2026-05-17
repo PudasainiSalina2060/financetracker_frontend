@@ -1,4 +1,4 @@
-import 'dart:convert'; 
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:financetracker_frontend/database/local_db.dart';
 
@@ -15,14 +15,13 @@ class SyncService {
 
     if (operation == 'insert') {
       await db.insert('sync_log', {
-        'table_name':   tableName,
-        'record_id':    recordId,
-        'operation':    'insert',
-        'is_synced':    0,
+        'table_name': tableName,
+        'record_id': recordId,
+        'operation': 'insert',
+        'is_synced': 0,
         'last_updated': DateTime.now().toIso8601String(),
       });
       print('Log added: insert on $tableName #$recordId');
-
     } else if (operation == 'update') {
       final existing = await db.query(
         'sync_log',
@@ -39,18 +38,16 @@ class SyncService {
           whereArgs: [existing.first['sync_id']],
         );
         print('Log updated (no duplicate): update on $tableName #$recordId');
-
       } else {
         await db.insert('sync_log', {
-          'table_name':   tableName,
-          'record_id':    recordId,
-          'operation':    'update',
-          'is_synced':    0,
+          'table_name': tableName,
+          'record_id': recordId,
+          'operation': 'update',
+          'is_synced': 0,
           'last_updated': DateTime.now().toIso8601String(),
         });
         print('Log added: update on $tableName #$recordId');
       }
-
     } else if (operation == 'delete') {
       //remove any pending logs for this record, then add one delete entry
       await db.delete(
@@ -60,10 +57,10 @@ class SyncService {
       );
 
       await db.insert('sync_log', {
-        'table_name':   tableName,
-        'record_id':    recordId,
-        'operation':    'delete',
-        'is_synced':    0,
+        'table_name': tableName,
+        'record_id': recordId,
+        'operation': 'delete',
+        'is_synced': 0,
         'last_updated': DateTime.now().toIso8601String(),
       });
 
@@ -71,134 +68,125 @@ class SyncService {
     }
   }
 
-
   //save transaction locally first (offline support)
-    static Future<int> saveTransaction(Map<String, dynamic> data) async {
-      final db = await LocalDB.database;
+  static Future<int> saveTransaction(Map<String, dynamic> data) async {
+    final db = await LocalDB.database;
 
-      data['created_at'] = DateTime.now().toIso8601String();
-      data['updated_at'] = DateTime.now().toIso8601String();
+    data['created_at'] = DateTime.now().toIso8601String();
+    data['updated_at'] = DateTime.now().toIso8601String();
 
-      final id = await db.insert('transactions', data);
+    final id = await db.insert('transactions', data);
 
-      // Log this change 
-      await logChange(
-        tableName: 'transactions',
-        recordId:  id,
-        operation: 'insert',
-      );
+    // Log this change
+    await logChange(
+      tableName: 'transactions',
+      recordId: id,
+      operation: 'insert',
+    );
 
-      print('Transaction saved locally with id: $id');
-      return id;
-    }
+    print('Transaction saved locally with id: $id');
+    return id;
+  }
 
-    //update and track change for sync
-    static Future<void> updateTransaction(int id, Map<String, dynamic> data) async {
-      final db = await LocalDB.database;
+  //update and track change for sync
+  static Future<void> updateTransaction(
+    int id,
+    Map<String, dynamic> data,
+  ) async {
+    final db = await LocalDB.database;
 
-      data['updated_at'] = DateTime.now().toIso8601String();
+    data['updated_at'] = DateTime.now().toIso8601String();
 
-      await db.update(
-        'transactions',
-        data,
-        where: 'transaction_id = ?',
-        whereArgs: [id],
-      );
+    await db.update(
+      'transactions',
+      data,
+      where: 'transaction_id = ?',
+      whereArgs: [id],
+    );
 
-      await logChange(
-        tableName: 'transactions',
-        recordId:  id,
-        operation: 'update',
-      );
+    await logChange(
+      tableName: 'transactions',
+      recordId: id,
+      operation: 'update',
+    );
 
-      print('Transaction $id updated locally');
-    }
+    print('Transaction $id updated locally');
+  }
 
-    //delete locally and send delete later to backend
-    static Future<void> deleteTransaction(int id) async {
-      final db = await LocalDB.database;
+  //delete locally and send delete later to backend
+  static Future<void> deleteTransaction(int id) async {
+    final db = await LocalDB.database;
 
-      await db.delete(
-        'transactions',
-        where: 'transaction_id = ?',
-        whereArgs: [id],
-      );
+    await db.delete(
+      'transactions',
+      where: 'transaction_id = ?',
+      whereArgs: [id],
+    );
 
-      await logChange(
-        tableName: 'transactions',
-        recordId:  id,
-        operation: 'delete',
-      );
+    await logChange(
+      tableName: 'transactions',
+      recordId: id,
+      operation: 'delete',
+    );
 
-      print('Transaction $id deleted locally');
-    }
-
+    print('Transaction $id deleted locally');
+  }
 
   //Save new account (cash, bank,) and log
-    static Future<int> saveAccount(Map<String, dynamic> data) async {
-      final db = await LocalDB.database;
+  static Future<int> saveAccount(Map<String, dynamic> data) async {
+    final db = await LocalDB.database;
 
-      data['created_at'] = DateTime.now().toIso8601String();
+    data['created_at'] = DateTime.now().toIso8601String();
 
-      final id = await db.insert('accounts', data);
+    final id = await db.insert('accounts', data);
 
-      await logChange(
-        tableName: 'accounts',
-        recordId:  id,
-        operation: 'insert',
-      );
+    await logChange(tableName: 'accounts', recordId: id, operation: 'insert');
 
-      print('Account saved locally with id: $id');
-      return id;
-    }
+    print('Account saved locally with id: $id');
+    return id;
+  }
 
+  // Save budget and track change
+  static Future<int> saveBudget(Map<String, dynamic> data) async {
+    final db = await LocalDB.database;
 
-    // Save budget and track change
-    static Future<int> saveBudget(Map<String, dynamic> data) async {
-      final db = await LocalDB.database;
+    data['created_at'] = DateTime.now().toIso8601String();
 
-      data['created_at'] = DateTime.now().toIso8601String();
+    final id = await db.insert('budgets', data);
 
-      final id = await db.insert('budgets', data);
+    await logChange(tableName: 'budgets', recordId: id, operation: 'insert');
 
-      await logChange(
-        tableName: 'budgets',
-        recordId:  id,
-        operation: 'insert',
-      );
-
-      print('Budget saved locally with id: $id');
-      return id;
-    }
-
+    print('Budget saved locally with id: $id');
+    return id;
+  }
 
   //get all pending changes that are not synced yet
-    static Future<List<Map<String, dynamic>>> getUnsyncedLogs() async {
-      final db = await LocalDB.database;
+  static Future<List<Map<String, dynamic>>> getUnsyncedLogs() async {
+    final db = await LocalDB.database;
 
-      final logs = await db.query(
-        'sync_log',
-        where: 'is_synced = ?',
-        whereArgs: [0],
-      );
+    final logs = await db.query(
+      'sync_log',
+      where: 'is_synced = ?',
+      whereArgs: [0],
+    );
 
-      print('Unsynced logs count: ${logs.length}');
-      return logs;
-    }
+    print('Unsynced logs count: ${logs.length}');
+    return logs;
+  }
 
   // mark a log as synced (after sending to server)
-    static Future<void> markSynced(int syncId) async {
-      final db = await LocalDB.database;
+  static Future<void> markSynced(int syncId) async {
+    final db = await LocalDB.database;
 
-      await db.update(
-        'sync_log',
-        {'is_synced': 1},    // 1 = synced
-        where: 'sync_id = ?',
-        whereArgs: [syncId],
-      );
+    await db.update(
+      'sync_log',
+      {'is_synced': 1}, // 1 = synced
+      where: 'sync_id = ?',
+      whereArgs: [syncId],
+    );
 
-      print('Log $syncId marked as synced');
-    }
+    print('Log $syncId marked as synced');
+  }
 
   // Backend base URL
   // 10.0.2.2 = localhost for emulator
@@ -222,8 +210,7 @@ class SyncService {
     return rows.isNotEmpty ? rows.first : null;
   }
 
-
-  //get primary key column name for each table 
+  //get primary key column name for each table
   static String _getPrimaryKey(String tableName) {
     const keys = {
       'transactions': 'transaction_id',
@@ -242,7 +229,6 @@ class SyncService {
     return keys[tableName] ?? '${tableName}_id';
   }
 
-
   //send one unsynced log to backend
   static Future<bool> _sendToBackend(
     Map<String, dynamic> log,
@@ -250,7 +236,7 @@ class SyncService {
   ) async {
     try {
       final tableName = log['table_name'];
-      final recordId  = log['record_id'];
+      final recordId = log['record_id'];
       final operation = log['operation'];
 
       Map<String, dynamic>? recordData;
@@ -273,15 +259,17 @@ class SyncService {
         'last_updated': log['last_updated'],
       };
 
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/sync'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(body),
-        //avoid waiting forever if server is slow
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/api/sync'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(body),
+            //avoid waiting forever if server is slow
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         print('Synced: $tableName #$recordId');
@@ -290,13 +278,11 @@ class SyncService {
         print('Server error: ${response.statusCode}');
         return false;
       }
-
     } catch (e) {
       print('Send failed: $e');
       return false;
     }
   }
-
 
   //Main sync function : send all pending logs
   static Future<bool> syncToServer(String token) async {
@@ -318,6 +304,23 @@ class SyncService {
 
       if (success) {
         await markSynced(log['sync_id']);
+
+        // delete temporary offline record (negative id) after successful sync
+        // server creates a new real positive ID
+        // fresh API fetch will restore the correct record
+        if (log['operation'] == 'insert' && log['record_id'] < 0) {
+          final db = await LocalDB.database;
+
+          await db.delete(
+            log['table_name'],
+            where: '${_getPrimaryKey(log['table_name'])} = ?',
+            whereArgs: [log['record_id']],
+          );
+
+          print(
+            'Temp record deleted after sync: ${log['table_name']} #${log['record_id']}',
+          );
+        }
         successCount++;
       }
     }
@@ -325,5 +328,4 @@ class SyncService {
     print('Sync completed: $successCount/${unsyncedLogs.length}');
     return successCount == unsyncedLogs.length;
   }
-
 }
