@@ -1,5 +1,7 @@
+import 'package:financetracker_frontend/database/local_db.dart';
 import 'package:financetracker_frontend/screens/home_screen.dart';
 import 'package:financetracker_frontend/screens/welcome_screen.dart';
+import 'package:financetracker_frontend/services/connectivity_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -7,22 +9,35 @@ import 'package:financetracker_frontend/api_test.dart';
 import 'package:financetracker_frontend/services/notification_service.dart';
 
 void main() async {
-
-// Initializing Firebase before running the app
-  WidgetsFlutterBinding.ensureInitialized(); 
+  // Initializing Firebase before running the app
+  WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-   await NotificationService().saveFcmToken();
+  //Opens/creates the database
+  await LocalDB.database;
+  //printing all tables
+  await LocalDB.checkTables();
+  print("Database ready");
+
+  //start listening for internet changes
+  ConnectivityService.startListening();
+
+  //check if already online at app start
+  if (await ConnectivityService.isOnline()) {
+    print('Online right now ,sync will run after login');
+  }
+
+  await NotificationService().saveFcmToken();
 
   ConnectionTest.checkServer();
 
   const storage = FlutterSecureStorage();
 
-//check if the user token is saved
-  String? token = await storage.read(key: 'accessToken'); 
+  //check if the user token is saved
+  String? token = await storage.read(key: 'accessToken');
 
- //start the app and check if user is logged in
-  runApp( MyApp(isLoggedIn: token != null));
+  //start the app and check if user is logged in
+  runApp(MyApp(isLoggedIn: token != null));
 }
 
 class MyApp extends StatelessWidget {
@@ -54,7 +69,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
       //home: const MyHomePage(title: 'Flutter Demo Home Page'),
-      home: isLoggedIn ? const HomeScreen() :const WelcomeScreen(),
+      home: isLoggedIn ? const HomeScreen() : const WelcomeScreen(),
     );
   }
 }
