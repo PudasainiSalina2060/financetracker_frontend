@@ -52,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchHomeData() async {
+    if (!mounted) return;
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     //retrieving the users stored token
     final String? userToken = prefs.getString('accessToken');
@@ -73,6 +74,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final notifications = await _notificationService.getNotifications();
       final unread = notifications.where((n) => n['is_read'] == false).length;
 
+      if (!mounted) return;
+
       setState(() {
         _totalBalance = balance;
         _accounts = accountsList;
@@ -83,6 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     } catch (error) {
       print("Error fetching home data: $error");
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
