@@ -17,7 +17,7 @@ class AddTransactionScreen extends StatefulWidget {
 
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
   //Boolean to track if we are adding Income or Expense
-  bool isIncome = true; 
+  bool isIncome = true;
 
   //to remember the income/exp amount the user types
   //text box can't remember data so using Reporter (The controller) so the exact amount user type can be send to the database)
@@ -32,29 +32,29 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   List<CategoryModel> _allCategories = [];
 
   // currently selected category
-  CategoryModel? _selectedCategory; 
+  CategoryModel? _selectedCategory;
 
   // loading state
   bool _isLoadingCategories = true;
 
-  final AccountService _accountService = AccountService(); 
+  final AccountService _accountService = AccountService();
   final TransactionService _transactionService = TransactionService();
   final CategoryService _categoryService = CategoryService();
-  
+
   //controller for notes box
   TextEditingController notesController = TextEditingController();
 
-  List<dynamic> _accounts = []; 
-  String _selectedAccountName = "Select Account"; 
+  List<dynamic> _accounts = [];
+  String _selectedAccountName = "Select Account";
   int? _selectedAccountId; // store selected account id
-  bool _isLoadingAccounts = true; 
-
+  bool _isLoadingAccounts = true;
 
   //fetching accounts list
+  @override
   void initState() {
     super.initState();
     //calling the fetch function
-    _loadUserAccounts(); 
+    _loadUserAccounts();
     _loadCategories();
 
     //if we are editing an existing transaction, following fields shall be filled
@@ -63,42 +63,60 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       notesController.text = widget.existingTransaction!.notes;
       selectedDate = widget.existingTransaction!.date;
       isIncome = widget.existingTransaction!.type == 'income';
-      
+
       _selectedAccountId = widget.existingTransaction!.accountId;
 
       if (widget.existingTransaction!.isRecurring == false) {
-      selectedRecurring = "None";
+        selectedRecurring = "None";
       } else {
         String freq = widget.existingTransaction!.frequency ?? "Daily";
         selectedRecurring = freq[0].toUpperCase() + freq.substring(1);
       }
-    }else{
+    } else {
       //default for new transactions
       selectedRecurring = "None";
     }
   }
 
   Future<void> _loadUserAccounts() async {
-    final accounts = await _accountService.getAllAccounts();
-    setState((){
-      _accounts = accounts;
-      if (_accounts.isNotEmpty) {
-        //If editing, find the name of the existing account
-        if (widget.existingTransaction != null) {
-          final existingAcc = _accounts.firstWhere(
-            (acc) => acc['account_id'] == widget.existingTransaction!.accountId,
-            orElse: () => _accounts[0],
-          );
-          _selectedAccountName = existingAcc['name'];
-          _selectedAccountId = existingAcc['account_id'];
-        }else{
-          //default to first account for new transactions
-        _selectedAccountName = _accounts[0]['name'];
-        _selectedAccountId = _accounts[0]['account_id'];
+    try {
+      final accounts = await _accountService.getAllAccounts();
+
+      // Prevent setState if widget was removed from screen
+      if (!mounted) return;
+
+      // getAllAccounts() already has SQLite fallback.
+      // It loads local SQLite data automatically when offline.
+      setState(() {
+        _accounts = accounts;
+        if (_accounts.isNotEmpty) {
+          //If editing, find the name of the existing account
+          if (widget.existingTransaction != null) {
+            final existingAcc = _accounts.firstWhere(
+              (acc) =>
+                  acc['account_id'] == widget.existingTransaction!.accountId,
+              orElse: () => _accounts[0] as Map<String, dynamic>,
+            );
+            _selectedAccountName = existingAcc['name'];
+            _selectedAccountId = existingAcc['account_id'];
+          } else {
+            //default to first account for new transactions
+            _selectedAccountName = _accounts[0]['name'];
+            _selectedAccountId = _accounts[0]['account_id'];
+          }
+        } else {
+          _selectedAccountName = "No accounts found";
         }
-      }
-      _isLoadingAccounts = false;
-    });
+        _isLoadingAccounts = false;
+      });
+    } catch (e) {
+      print('Error loading accounts: $e');
+      if (!mounted) return;
+      setState(() {
+        _isLoadingAccounts = false;
+        _selectedAccountName = 'Select Account';
+      });
+    }
   }
 
   Future<void> _loadCategories() async {
@@ -108,12 +126,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       final String? accessToken = prefs.getString('accessToken');
       print("DEBUG: Fetching categories with accessToken: $accessToken");
 
-      final categories = await _categoryService.getAllCategories(accessToken ?? "");
+      final categories = await _categoryService.getAllCategories(
+        accessToken ?? "",
+      );
       print("DEBUG: Received ${categories.length} categories from server");
 
       setState(() {
         _allCategories = categories;
-        
+
         // Safety check: only try to select a default if we actually got categories back
         if (_allCategories.isNotEmpty) {
           if (widget.existingTransaction != null) {
@@ -134,7 +154,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       });
     } catch (e) {
       print("Error loading categories: $e");
-      setState(() { _isLoadingCategories = false; });
+      setState(() {
+        _isLoadingCategories = false;
+      });
     }
   }
 
@@ -151,11 +173,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       context: context,
       initialDate: selectedDate,
       firstDate: DateTime(2000), // Earliest date allowed
-      lastDate: DateTime(2101),  // Latest date allowed
+      lastDate: DateTime(2101), // Latest date allowed
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: Colors.teal), 
+            colorScheme: const ColorScheme.light(primary: Colors.teal),
           ),
           child: child!,
         );
@@ -169,14 +191,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
   }
 
-//Function to show the "Success" popup after saving transaction
-//using flutters SnackBar widget
-void _showSuccessPopup() {
+  //Function to show the "Success" popup after saving transaction
+  //using flutters SnackBar widget
+  void _showSuccessPopup() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text("Transaction Saved Successfully!"),
         backgroundColor: Colors.teal,
-        behavior: SnackBarBehavior.floating, // makes the message pop up above the bottom
+        behavior: SnackBarBehavior
+            .floating, // makes the message pop up above the bottom
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         duration: const Duration(seconds: 2),
       ),
@@ -187,13 +210,15 @@ void _showSuccessPopup() {
   void _showCategoryPicker() {
     // using .toUpperCase() on 'INCOME'/'EXPENSE' in database
     final String currentType = isIncome ? 'INCOME' : 'EXPENSE';
-    final filteredCategories = _allCategories.where(
-      (c) => c.type.toUpperCase() == currentType
-    ).toList();
+    final filteredCategories = _allCategories
+        .where((c) => c.type.toUpperCase() == currentType)
+        .toList();
 
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
         // if the list is still empty, displaying a message
         if (filteredCategories.isEmpty) {
@@ -206,49 +231,60 @@ void _showSuccessPopup() {
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            Text("Select ${isIncome ? 'Income' : 'Expense'} Category", 
-                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              "Select ${isIncome ? 'Income' : 'Expense'} Category",
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 10),
-            ...filteredCategories.map((cat) => ListTile(
-              leading: Icon(cat.getIcon(), color: Colors.teal),
-              title: Text(cat.name),
-              onTap: () {
-                setState(() {
-                  _selectedCategory = cat; 
-                });
-                Navigator.pop(context); 
-              },
-            )),
+            ...filteredCategories.map(
+              (cat) => ListTile(
+                leading: Icon(cat.getIcon(), color: Colors.teal),
+                title: Text(cat.name),
+                onTap: () {
+                  setState(() {
+                    _selectedCategory = cat;
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+            ),
           ],
         );
       },
     );
   }
 
-//Function to show list of accounts
-void _showAccountPicker() {
+  //Function to show list of accounts
+  void _showAccountPicker() {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            const Text("Select Account", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              "Select Account",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 10),
             // show accounts
-            ..._accounts.map((account) => ListTile(
-              leading: const Icon(Icons.account_balance, color: Colors.teal),
-              title: Text(account['name']),
-              subtitle: Text("NPR ${account['current_balance']}"), 
-              onTap: () {
-                setState(() {
-                  _selectedAccountName = account['name'];
-                  _selectedAccountId = account['account_id'];
-                });
-                Navigator.pop(context); // Close the menu
-              },
-            )),
+            ..._accounts.map(
+              (account) => ListTile(
+                leading: const Icon(Icons.account_balance, color: Colors.teal),
+                title: Text(account['name']),
+                subtitle: Text("NPR ${account['current_balance']}"),
+                onTap: () {
+                  setState(() {
+                    _selectedAccountName = account['name'];
+                    _selectedAccountId = account['account_id'];
+                  });
+                  Navigator.pop(context); // Close the menu
+                },
+              ),
+            ),
           ],
         );
       },
@@ -256,75 +292,80 @@ void _showAccountPicker() {
   }
 
   Future<void> _handleSave() async {
-
     final String amountText = amountController.text.trim();
     final double? enteredAmount = double.tryParse(amountText);
 
     //validation
     if (amountText.isEmpty || enteredAmount == null || enteredAmount <= 0) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Please enter a valid amount greater than 0"),
-        backgroundColor: Colors.orange,
-      ),
-    );
-    return;
-  }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please enter a valid amount greater than 0"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
 
-  if (_selectedAccountId == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Please select an account")),
-    );
-    return;
-  }
+    if (_selectedAccountId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Please select an account")));
+      return;
+    }
 
-  if (_selectedCategory == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Please select a category")),
-    );
-    return;
-  }
+    if (_selectedCategory == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Please select a category")));
+      return;
+    }
 
-  //Save data
-  bool success;
+    //Save data
+    bool success;
 
-  if (widget.existingTransaction != null) {
-    success = await _transactionService.updateTransaction(
-      id: widget.existingTransaction!.id,
-      accountId: _selectedAccountId!,
-      categoryId: _selectedCategory!.id,
-      type: isIncome ? 'income' : 'expense',
-      amount: enteredAmount,
-      notes: notesController.text,
-      date: selectedDate,
-      isRecurring: selectedRecurring != "None",
-      frequency: selectedRecurring == "None" ? null : selectedRecurring.toLowerCase(),
-    );
-  } else {
-    success = await _transactionService.addTransaction(
-      accountId: _selectedAccountId!,
-      categoryId: _selectedCategory!.id,
-      type: isIncome ? 'income' : 'expense',
-      amount: enteredAmount,
-      notes: notesController.text,
-      date: selectedDate,
-      isRecurring: selectedRecurring != "None",
-      frequency: selectedRecurring == "None" ? null : selectedRecurring.toLowerCase(),
-    );
-  }
+    if (widget.existingTransaction != null) {
+      success = await _transactionService.updateTransaction(
+        id: widget.existingTransaction!.id,
+        accountId: _selectedAccountId!,
+        categoryId: _selectedCategory!.id,
+        type: isIncome ? 'income' : 'expense',
+        amount: enteredAmount,
+        notes: notesController.text,
+        date: selectedDate,
+        isRecurring: selectedRecurring != "None",
+        frequency: selectedRecurring == "None"
+            ? null
+            : selectedRecurring.toLowerCase(),
+      );
+    } else {
+      success = await _transactionService.addTransaction(
+        accountId: _selectedAccountId!,
+        categoryId: _selectedCategory!.id,
+        type: isIncome ? 'income' : 'expense',
+        amount: enteredAmount,
+        notes: notesController.text,
+        date: selectedDate,
+        isRecurring: selectedRecurring != "None",
+        frequency: selectedRecurring == "None"
+            ? null
+            : selectedRecurring.toLowerCase(),
+      );
+    }
 
-  if (success) {
-    _showSuccessPopup();
-    Future.delayed(const Duration(seconds: 1), () => Navigator.pop(context, true));
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Failed to save transaction"),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-    
+    if (success) {
+      _showSuccessPopup();
+      Future.delayed(
+        const Duration(seconds: 1),
+        () => Navigator.pop(context, true),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Failed to save transaction"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -332,8 +373,13 @@ void _showAccountPicker() {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text("Add a New Transaction", 
-        style: GoogleFonts.karma(fontWeight: FontWeight.bold, color: Colors.black)),
+        title: Text(
+          "Add a New Transaction",
+          style: GoogleFonts.karma(
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
@@ -348,37 +394,60 @@ void _showAccountPicker() {
             //TOGGLE SECTION (Income vs Expenses)
             Row(
               children: [
-                _buildToggleButton("Income", isIncome, () => setState(() => isIncome = true)),
+                _buildToggleButton(
+                  "Income",
+                  isIncome,
+                  () => setState(() => isIncome = true),
+                ),
                 const SizedBox(width: 10),
-                _buildToggleButton("Expenses", !isIncome, () => setState(() => isIncome = false)),
+                _buildToggleButton(
+                  "Expenses",
+                  !isIncome,
+                  () => setState(() => isIncome = false),
+                ),
               ],
             ),
-            
+
             const SizedBox(height: 30),
 
             //  AMOUNT DISPLAY
             TextField(
-              controller: amountController, // attach our Reporter(amountController) to specific box
-              keyboardType: TextInputType.number, // forces the phone to only show the Number Pad
-              textAlign: TextAlign.center, // keeps the numbers nicely in the middle
-              style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.teal[700]),
+              controller:
+                  amountController, // attach our Reporter(amountController) to specific box
+              keyboardType: TextInputType
+                  .number, // forces the phone to only show the Number Pad
+              textAlign:
+                  TextAlign.center, // keeps the numbers nicely in the middle
+              style: TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.bold,
+                color: Colors.teal[700],
+              ),
               decoration: InputDecoration(
                 prefixIcon: Padding(
                   padding: const EdgeInsets.only(left: 65, top: 5),
                   child: Text(
                     "NPR",
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.teal[300]),),
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal[300],
+                    ),
+                  ),
                 ),
-                prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 0,
+                  minHeight: 0,
+                ),
                 hintText: "0.00",
                 hintStyle: TextStyle(color: Colors.teal[300]),
-                border: InputBorder.none, 
-              ), 
+                border: InputBorder.none,
+              ),
             ),
-            
+
             const SizedBox(height: 30),
 
-            //  INPUT FIELDS 
+            //  INPUT FIELDS
             // For CATEGORY SELECTOR
             InkWell(
               onTap: _showCategoryPicker, //opens the sliding menu
@@ -386,7 +455,9 @@ void _showAccountPicker() {
                 child: _buildInputField(
                   // If a category is selected, use its icon and name
                   // otherwise show a default icon and "Select Category" placeholder.
-                  _selectedCategory != null ? _selectedCategory!.getIcon() : Icons.category,
+                  _selectedCategory != null
+                      ? _selectedCategory!.getIcon()
+                      : Icons.category,
                   _selectedCategory?.name ?? "Select Category", // show the name
                 ),
               ),
@@ -395,12 +466,12 @@ void _showAccountPicker() {
               onTap: _showAccountPicker, // triggering the picker we made before
               child: IgnorePointer(
                 child: _buildInputField(
-                  Icons.account_balance, 
+                  Icons.account_balance,
                   _isLoadingAccounts ? "Loading..." : _selectedAccountName,
                 ),
               ),
             ),
-            
+
             //FOR CALENDAR INPUT
             InkWell(
               onTap: () => _selectDate(context),
@@ -419,11 +490,19 @@ void _showAccountPicker() {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("Recurring Transaction", style: TextStyle(color: Colors.grey, fontSize: 16)),
+                const Text(
+                  "Recurring Transaction",
+                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                ),
                 DropdownButton<String>(
                   value: selectedRecurring,
-                  items: ["Daily", "Weekly", "Monthly", "None"].map((String value) {
-                    return DropdownMenuItem<String>(value: value, child: Text(value));
+                  items: ["Daily", "Weekly", "Monthly", "None"].map((
+                    String value,
+                  ) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
                   }).toList(),
                   onChanged: (newValue) {
                     setState(() {
@@ -444,7 +523,10 @@ void _showAccountPicker() {
                 hintText: "Notes",
                 filled: true,
                 fillColor: Colors.grey[50],
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
 
@@ -458,9 +540,14 @@ void _showAccountPicker() {
                 onPressed: () => _handleSave(), //save transaction
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.teal,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
                 ),
-                child: const Text("Save Transaction", style: TextStyle(fontSize: 18, color: Colors.white)),
+                child: const Text(
+                  "Save Transaction",
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
               ),
             ),
           ],
@@ -478,14 +565,26 @@ void _showAccountPicker() {
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
             // Changes color based on if it is selected or not
-            color: isActive ? (label == "Income" ? Colors.green[100] : Colors.red[100]) : Colors.white,
+            color: isActive
+                ? (label == "Income" ? Colors.green[100] : Colors.red[100])
+                : Colors.white,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: isActive ? (label == "Income" ? Colors.green : Colors.red) : Colors.grey[300]!),
+            border: Border.all(
+              color: isActive
+                  ? (label == "Income" ? Colors.green : Colors.red)
+                  : Colors.grey[300]!,
+            ),
           ),
           child: Center(
-            child: Text(label, style: TextStyle(
-              fontWeight: FontWeight.bold, 
-              color: isActive ? (label == "Income" ? Colors.green[700] : Colors.red[700]) : Colors.grey)),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isActive
+                    ? (label == "Income" ? Colors.green[700] : Colors.red[700])
+                    : Colors.grey,
+              ),
+            ),
           ),
         ),
       ),
@@ -497,7 +596,10 @@ void _showAccountPicker() {
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-      decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(15)),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(15),
+      ),
       child: TextField(
         decoration: InputDecoration(
           icon: Icon(icon, color: Colors.grey),
