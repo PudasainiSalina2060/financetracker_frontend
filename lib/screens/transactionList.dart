@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:financetracker_frontend/models/transaction_model.dart';
 import 'package:financetracker_frontend/services/transaction_service.dart';
 import 'package:financetracker_frontend/screens/addTransaction_screen.dart';
-import 'package:intl/intl.dart'; 
+import 'package:intl/intl.dart';
 
 class TransactionListPage extends StatefulWidget {
   const TransactionListPage({super.key});
@@ -32,15 +32,15 @@ class _TransactionListPageState extends State<TransactionListPage> {
 
     if (checkDate == today) return "Today";
     if (checkDate == yesterday) return "Yesterday";
-    return DateFormat('MMMM dd, yyyy').format(date); 
+    return DateFormat('MMMM dd, yyyy').format(date);
   }
 
   Future<void> _fetchTransactions() async {
     try {
       final data = await _transactionService.getAllTransactions();
-      
-      // sorting newest transaction first 
-      data.sort((a, b) => b.date.compareTo(a.date)); 
+
+      // sorting newest transaction first
+      data.sort((a, b) => b.date.compareTo(a.date));
 
       setState(() {
         _transactions = data;
@@ -65,116 +65,148 @@ class _TransactionListPageState extends State<TransactionListPage> {
         ),
         title: Text(
           'Transactions',
-          style: GoogleFonts.karma(color: Colors.black, fontWeight: FontWeight.bold),
+          style: GoogleFonts.karma(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _transactions.isEmpty
-                ? const Center(child: Text("No transactions found"))
-                : ListView.builder(
-                    padding: const EdgeInsets.all(20.0),
-                    itemCount: _transactions.length,
-                    itemBuilder: (context, index) {
-                      final tx = _transactions[index];
+            ? const Center(child: Text("No transactions found"))
+            : ListView.builder(
+                padding: const EdgeInsets.all(20.0),
+                itemCount: _transactions.length,
+                itemBuilder: (context, index) {
+                  final tx = _transactions[index];
 
-                      //For Top header section
-                      bool showHeader = false;
-                      
-                      // Show header if its the first item or if date changed from previous item
-                      if (index == 0) {
-                        showHeader = true;
-                      } else {
-                        final prevTx = _transactions[index - 1];
-                        if (getDayText(tx.date) != getDayText(prevTx.date)) {
-                          showHeader = true;
-                        }
-                      }
-                      
+                  //For Top header section
+                  bool showHeader = false;
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          //show date header (today,yesterday or full date)
-                          if (showHeader)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 10, bottom: 10, left: 5),
-                              child: Text(
-                                getDayText(tx.date),
-                                style: GoogleFonts.karma(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ),
-                          
-                         
-                          Dismissible(
-                            key: Key(tx.id.toString()),
-                            direction: DismissDirection.endToStart,
-                            confirmDismiss: (direction) async {
-                              return await showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text("Delete Transaction?"),
-                                  content: const Text("This will update your account balance. Proceed?"),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context, false), 
-                                      child: const Text("No"),
-                                    ),
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context, true), 
-                                      child: const Text("Yes, Delete"),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                            background: Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 20),
-                              child: const Icon(Icons.delete, color: Colors.white),
-                            ),
-                            onDismissed: (direction) async {
-                              await _transactionService.deleteTransaction(tx.id);
-                              _fetchTransactions();
-                            },
-                            child: InkWell(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => AddTransactionScreen(existingTransaction: tx),
-                                  ),
-                                ).then((_) => _fetchTransactions());
-                              },
-                              child: transactionItem(
-                                title: tx.categoryName,
-                                subtitle: tx.notes,
-                                amount: "${tx.type == 'income' ? '+' : '-'} NPR ${tx.amount}",
-                                isIncome: tx.type == 'income',
-                                icon: tx.type == 'income' ? Icons.add : Icons.remove,
-                              ),
+                  // Show header if its the first item or if date changed from previous item
+                  if (index == 0) {
+                    showHeader = true;
+                  } else {
+                    final prevTx = _transactions[index - 1];
+                    if (getDayText(tx.date) != getDayText(prevTx.date)) {
+                      showHeader = true;
+                    }
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      //show date header (today,yesterday or full date)
+                      if (showHeader)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            top: 10,
+                            bottom: 10,
+                            left: 5,
+                          ),
+                          child: Text(
+                            getDayText(tx.date),
+                            style: GoogleFonts.karma(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[600],
                             ),
                           ),
-                        ],
-                      );
-                    },
-                  ),
+                        ),
+
+                      Dismissible(
+                        key: Key(tx.id.toString()),
+                        direction: DismissDirection.endToStart,
+                        confirmDismiss: (direction) async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text("Delete Transaction?"),
+                              content: const Text(
+                                "This will update your account balance. Proceed?",
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(context, false),
+                                  child: const Text("No"),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text("Yes, Delete"),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm != true) return false;
+
+                          // try deleting transaction from backend
+                          final success = await _transactionService
+                              .deleteTransaction(tx.id);
+
+                          // Show warning if delete failed (for no internet)
+                          if (!success) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Delete requires internet connection',
+                                ),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+
+                            return false;
+                          }
+
+                          // refresh transaction list after successful delete
+                          _fetchTransactions();
+
+                          return true;
+                        },
+                        background: Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          child: const Icon(Icons.delete, color: Colors.white),
+                        ),
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AddTransactionScreen(
+                                  existingTransaction: tx,
+                                ),
+                              ),
+                            ).then((_) => _fetchTransactions());
+                          },
+                          child: transactionItem(
+                            title: tx.categoryName,
+                            subtitle: tx.notes,
+                            amount:
+                                "${tx.type == 'income' ? '+' : '-'} NPR ${tx.amount}",
+                            isIncome: tx.type == 'income',
+                            icon: tx.type == 'income'
+                                ? Icons.add
+                                : Icons.remove,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
       ),
     );
   }
 
-
-// Builds a single transaction row
+  // Builds a single transaction row
   Widget transactionItem({
     required String title,
     required String subtitle,
@@ -211,8 +243,17 @@ class _TransactionListPageState extends State<TransactionListPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: GoogleFonts.karma(fontWeight: FontWeight.bold, fontSize: 16)),
-                Text(subtitle, style: GoogleFonts.karma(color: Colors.grey, fontSize: 13)),
+                Text(
+                  title,
+                  style: GoogleFonts.karma(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.karma(color: Colors.grey, fontSize: 13),
+                ),
               ],
             ),
           ),
@@ -220,7 +261,9 @@ class _TransactionListPageState extends State<TransactionListPage> {
             amount,
             style: GoogleFonts.karma(
               fontWeight: FontWeight.bold,
-              color: isIncome ? const Color.fromARGB(255, 43, 147, 61) : const Color.fromARGB(255, 181, 56, 47),
+              color: isIncome
+                  ? const Color.fromARGB(255, 43, 147, 61)
+                  : const Color.fromARGB(255, 181, 56, 47),
               fontSize: 17,
             ),
           ),

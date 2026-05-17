@@ -15,6 +15,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:financetracker_frontend/screens/budget_screen.dart';
 import 'package:financetracker_frontend/screens/notifications_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:financetracker_frontend/services/socket_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -41,11 +43,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final NotificationService _notificationService = NotificationService();
   int _unreadNotifCount = 0;
-  
+
   @override
   void initState() {
     super.initState();
     _fetchHomeData(); //call the backend when screen starts
+    _connectSocket(); //connect realtime updates
   }
 
   Future<void> _fetchHomeData() async {
@@ -82,6 +85,38 @@ class _HomeScreenState extends State<HomeScreen> {
       print("Error fetching home data: $error");
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _connectSocket() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
+
+    if (token == null) return;
+
+    //get userId from JWT token
+    final parts = token.split('.');
+    if (parts.length != 3) return;
+
+    //payload contains user info
+    String payload = parts[1];
+
+    //fixing padding issue so decoding works
+    while (payload.length % 4 != 0) {
+      payload += '=';
+    }
+
+    //decode token and get userId
+    final decoded = jsonDecode(utf8.decode(base64Decode(payload)));
+
+    final userId = decoded['userId'];
+
+    //connect socket
+    SocketService.connect(userId);
+
+    //listen for backend updates
+    SocketService.onDataUpdated((data) {
+      _fetchHomeData(); //refresh UI when backend changes
+    });
   }
 
   @override
@@ -122,12 +157,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           onPressed: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => const InsightsPage()),
+                              MaterialPageRoute(
+                                builder: (context) => const InsightsPage(),
+                              ),
                             );
                           },
-                          icon: Icon(Icons.bar_chart_rounded, color: Colors.teal[700]),
+                          icon: Icon(
+                            Icons.bar_chart_rounded,
+                            color: Colors.teal[700],
+                          ),
                         ),
-                      ), 
+                      ),
 
                       const SizedBox(width: 8),
 
@@ -142,13 +182,19 @@ class _HomeScreenState extends State<HomeScreen> {
                               onPressed: () async {
                                 await Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (context) => const NotificationsPage()),
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const NotificationsPage(),
+                                  ),
                                 );
                                 _fetchHomeData(); // refresh badge count when user comes back
                               },
-                              icon: const Icon(Icons.notifications_none_outlined, color: Colors.teal),
+                              icon: const Icon(
+                                Icons.notifications_none_outlined,
+                                color: Colors.teal,
+                              ),
                             ),
-                        
+
                             // only show red badge if there are unread notifications
                             if (_unreadNotifCount > 0)
                               Positioned(
@@ -161,7 +207,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                     shape: BoxShape.circle,
                                   ),
                                   child: Text(
-                                    _unreadNotifCount > 9 ? '9+' : '$_unreadNotifCount',
+                                    _unreadNotifCount > 9
+                                        ? '9+'
+                                        : '$_unreadNotifCount',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 10,
@@ -185,13 +233,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(25),
                 decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.teal[800]!, Colors.teal[400]!],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                  gradient: LinearGradient(
+                    colors: [Colors.teal[800]!, Colors.teal[400]!],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                borderRadius: BorderRadius.circular(20),
-              ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -272,7 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 : acc['type']?.toString().toUpperCase() ==
                                       'CARD'
                                 ? Icons.credit_card
-                                :Icons.payments_outlined,
+                                : Icons.payments_outlined,
                             acc['account_id'],
                             acc['type'] ?? 'CASH',
                           );
@@ -306,7 +354,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                     child: Text(
                       "See all",
-                      style: GoogleFonts.karma(color: Colors.teal, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.karma(
+                        color: Colors.teal,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -320,10 +371,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         itemCount: _transactions.length,
                         itemBuilder: (context, index) {
                           final tx = _transactions[index];
-                
+
                           return Dismissible(
                             key: Key(tx.id.toString()),
-                            direction: DismissDirection.endToStart, // Swipe left
+                            direction:
+                                DismissDirection.endToStart, // Swipe left
                             //for the delete box
                             background: Container(
                               margin: const EdgeInsets.symmetric(vertical: 12),
@@ -338,10 +390,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: Colors.white,
                               ),
                             ),
-                
-                            //delete confirmation pop up
+
+                            //delete confirmation and safe delete
                             confirmDismiss: (direction) async {
-                              return await showDialog(
+                              //show confirm dialog first
+                              final confirm = await showDialog<bool>(
                                 context: context,
                                 builder: (context) => AlertDialog(
                                   title: const Text("Delete Transaction?"),
@@ -362,32 +415,51 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ],
                                 ),
                               );
-                            },
-                
-                            // for delete action
-                            onDismissed: (direction) async {
-                              await _transactionService.deleteTransaction(tx.id);
+                              if (confirm != true) return false;
+
+                              // try deleting transaction
+                              final success = await _transactionService
+                                  .deleteTransaction(tx.id);
+
+                              // if delete failed
+                              if (!success) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Delete requires internet connection',
+                                    ),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                                return false;
+                              }
+
+                              //refresh home data after successful delete
                               _fetchHomeData();
+                              return true;
                             },
-                
+
                             child: InkWell(
                               onTap: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        AddTransactionScreen(existingTransaction: tx),
+                                    builder: (context) => AddTransactionScreen(
+                                      existingTransaction: tx,
+                                    ),
                                   ),
                                 ).then((_) => _fetchHomeData());
                               },
                               child: transactionItem(
                                 title: tx.categoryName,
                                 subtitle: "${tx.accountName} • ${tx.notes}",
-                                amount: "${tx.type == 'income' ? '+' : '-'} NPR ${double.tryParse(tx.amount.toString())?.toStringAsFixed(2) ?? tx.amount}",
+                                amount:
+                                    "${tx.type == 'income' ? '+' : '-'} NPR ${double.tryParse(tx.amount.toString())?.toStringAsFixed(2) ?? tx.amount}",
                                 isIncome: tx.type == 'income',
-                                icon: tx.type == 'income' ? Icons.add : Icons.remove,
+                                icon: tx.type == 'income'
+                                    ? Icons.add
+                                    : Icons.remove,
                               ),
-                              
                             ),
                           );
                         },
@@ -430,52 +502,73 @@ class _HomeScreenState extends State<HomeScreen> {
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                  Icon(Icons.home_outlined, color: Colors.teal, size: 28),
-                  Text("Home", style: TextStyle(fontSize: 10, color: Colors.teal)),
+                Icon(Icons.home_outlined, color: Colors.teal, size: 28),
+                Text(
+                  "Home",
+                  style: TextStyle(fontSize: 10, color: Colors.teal),
+                ),
               ],
             ),
 
-           GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const BudgetPage()),
-              );
-            },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.receipt_long_outlined, color: const Color.fromARGB(255, 155, 161, 160), size: 28),
-                Text("Budget", style: TextStyle(fontSize: 10)),
-              ],
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const BudgetPage()),
+                );
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    color: const Color.fromARGB(255, 155, 161, 160),
+                    size: 28,
+                  ),
+                  Text("Budget", style: TextStyle(fontSize: 10)),
+                ],
+              ),
             ),
-          ),
 
-          GestureDetector(
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const GroupsScreen()));
-            },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.groups_2_outlined, color: const Color.fromARGB(255, 155, 161, 160), size: 28),
-                Text("Split", style: TextStyle(fontSize: 10)),
-              ],
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const GroupsScreen()),
+                );
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.groups_2_outlined,
+                    color: const Color.fromARGB(255, 155, 161, 160),
+                    size: 28,
+                  ),
+                  Text("Split", style: TextStyle(fontSize: 10)),
+                ],
+              ),
             ),
-          ),
 
-          GestureDetector(
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
-            },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.person_outlined, color: const Color.fromARGB(255, 155, 161, 160), size: 28),
-                Text("Profile", style: TextStyle(fontSize: 10)),
-              ],
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SettingsPage()),
+                );
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.person_outlined,
+                    color: const Color.fromARGB(255, 155, 161, 160),
+                    size: 28,
+                  ),
+                  Text("Profile", style: TextStyle(fontSize: 10)),
+                ],
+              ),
             ),
-          ),
           ],
         ),
       ),
@@ -516,10 +609,7 @@ class _HomeScreenState extends State<HomeScreen> {
           decoration: BoxDecoration(
             color: Colors.teal[50],
             borderRadius: BorderRadius.circular(15),
-            border: Border.all(
-              color: Colors.teal.withOpacity(0.3),
-              width: 1.5,
-            ),
+            border: Border.all(color: Colors.teal.withOpacity(0.3), width: 1.5),
           ),
           child: Column(
             children: [
@@ -545,6 +635,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
   //(Helper widget)reusable widget to display a transaction row
   Widget transactionItem({
     required String title,
@@ -582,8 +673,21 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: GoogleFonts.karma(fontWeight: FontWeight.bold, fontSize: 16)),
-                Text(subtitle, style: GoogleFonts.karma(color: const Color.fromARGB(255, 58, 58, 58), fontSize: 13, fontWeight: FontWeight.w600)),
+                Text(
+                  title,
+                  style: GoogleFonts.karma(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.karma(
+                    color: const Color.fromARGB(255, 58, 58, 58),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -591,7 +695,9 @@ class _HomeScreenState extends State<HomeScreen> {
             amount,
             style: GoogleFonts.karma(
               fontWeight: FontWeight.bold,
-              color: isIncome ? const Color.fromARGB(255, 43, 147, 61) : const Color.fromARGB(255, 181, 56, 47),
+              color: isIncome
+                  ? const Color.fromARGB(255, 43, 147, 61)
+                  : const Color.fromARGB(255, 181, 56, 47),
               fontSize: 17,
             ),
           ),
@@ -599,5 +705,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
 
+  @override
+  void dispose() {
+    SocketService.disconnect();
+    super.dispose();
+  }
+}
