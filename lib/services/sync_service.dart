@@ -273,11 +273,47 @@ class SyncService {
 
       if (response.statusCode == 200) {
         print('Synced: $tableName #$recordId');
+
+        // if an offline account was synced, server sends back the real account_id
+        // update all transactions that still have the old temp account_id
+        if (tableName == 'accounts' && operation != 'delete') {
+          final responseData = jsonDecode(response.body);
+          final newAccountId = responseData['new_account_id'];
+
+          if (newAccountId != null) {
+            final db = await LocalDB.database;
+
+            // update transactions: replace old temp account_id with real account_id
+            final updated = await db.update(
+              'transactions',
+              {'account_id': newAccountId},
+              where: 'account_id = ?',
+              whereArgs: [recordId],
+            );
+
+            if (updated > 0) {
+              print('Updated $updated transactions: temp account_id $recordId → real account_id $newAccountId');
+
+              // mark those transactions as unsynced so they get sent to server
+              await db.rawUpdate('''
+                UPDATE sync_log 
+                SET is_synced = 0 
+                WHERE table_name = 'transactions' 
+                  AND record_id IN (
+                    SELECT transaction_id FROM transactions WHERE account_id = ?
+                  )
+              ''', [newAccountId]);
+
+              print('Transactions marked for re-sync with real account_id');
+            }
+          }
+        }
         return true;
-      } else {
-        print('Server error: ${response.statusCode}');
-        return false;
-      }
+        } else {
+          print('Server error: ${response.statusCode}');
+          return false;
+        }
+      
     } catch (e) {
       print('Send failed: $e');
       return false;
