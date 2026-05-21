@@ -75,6 +75,7 @@ class SplitService {
     required DateTime date,
     required String splitType,   
     List<Map<String, dynamic>>? customSplits,  //used only for custom split
+    int? accountId,
   }) async {
     try {
       final response = await http.post(
@@ -87,6 +88,7 @@ class SplitService {
           'date': date.toIso8601String(),
           'split_type': splitType,
           'custom_splits': customSplits,
+          'account_id': accountId,
         }),
       );
       return response.statusCode == 201;
@@ -204,6 +206,111 @@ class SplitService {
     } catch (error) {
       print("Delete group error: $error");
       return false;
+    }
+  }
+  //Debtor submits payment to creditor
+  Future<bool> submitPayment({
+    required int shareId,
+    required int groupId,
+    required double amount,
+    int? fromAccountId,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/split/shares/$shareId/pay'),
+        headers: await _getAuthHeaders(),
+        //Send payment details to backend
+        body: jsonEncode({
+          'amount': amount,
+          'group_id': groupId,
+          //Debtor payment account
+          'from_account_id': fromAccountId,
+        }),
+      );
+      //Payment request created successfully
+      return response.statusCode == 201;
+    } catch (e) {
+      print("Submit payment error: $e");
+      return false;
+    }
+  }
+
+  //Creditor accepts debtor payment
+  Future<bool> acceptPayment({
+    required int pendingId,
+    //Creditor account to receive money
+    int? toAccountId,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/api/split/pending/$pendingId/accept'),
+        headers: await _getAuthHeaders(),
+        //Send creditor receiving account
+        body: jsonEncode({'to_account_id': toAccountId}),
+      );
+      //Payment accepted successfully
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Accept payment error: $e");
+      return false;
+    }
+  }
+
+  //Creditor rejects submitted payment
+  Future<bool> rejectPayment({required int pendingId}) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/api/split/pending/$pendingId/reject'),
+        headers: await _getAuthHeaders(),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Reject payment error: $e");
+      return false;
+    }
+  }
+  // Creditor manually marks payment as received (cash in hand)
+  Future<bool> creditorMarkReceived({
+    required int shareId,
+    required int groupId,
+    required double amount,
+    int? toAccountId,
+    required int fromMemberId,
+    required int toMemberId,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/split/shares/$shareId/creditor-receive'),
+        headers: await _getAuthHeaders(),
+        body: jsonEncode({
+          'amount': amount,
+          'group_id': groupId,
+          'to_account_id': toAccountId,
+          'from_member_id': fromMemberId,
+          'to_member_id': toMemberId,
+        }),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Creditor receive error: $e");
+      return false;
+    }
+  }
+
+  // Get all pending payments for logged in creditor
+  Future<List<dynamic>> getPendingPayments() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/split/pending'),
+        headers: await _getAuthHeaders(),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return [];
+    } catch (e) {
+      print("Get pending payments error: $e");
+      return [];
     }
   }
 }

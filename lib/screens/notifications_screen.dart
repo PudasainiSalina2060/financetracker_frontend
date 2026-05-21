@@ -1,3 +1,7 @@
+import 'package:financetracker_frontend/screens/groupDetail_screen.dart';
+import 'package:financetracker_frontend/screens/groupSplit_screen.dart';
+import 'package:financetracker_frontend/screens/pending_payments_screen.dart';
+import 'package:financetracker_frontend/services/split_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:financetracker_frontend/services/notification_service.dart';
@@ -42,6 +46,13 @@ class NotificationsPage extends StatefulWidget {
     Future<void> _markAllAsRead() async {
       await _notificationService.markAllAsRead();
       _fetchNotifications();
+    }
+
+    int? _extractGroupId(String? message) {
+      if (message == null) return null;
+      final match = RegExp(r'\[gid:(\d+)\]').firstMatch(message);
+      if (match != null) return int.tryParse(match.group(1)!);
+      return null;
     }
     
   @override
@@ -126,7 +137,52 @@ class NotificationsPage extends StatefulWidget {
                     onDismissed: (direction) =>
                         _deleteNotification(notif['notification_id']),
                     child: InkWell(
-                      onTap: () => _markAsRead(notif['notification_id']),
+                      onTap: ()async{
+                        // Mark as read
+                        await _notificationService.markAsRead(
+                          notif['notification_id'],
+                        );
+
+                        // Navigate based on type
+                        if (notif['type'] == 'settlement') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const PendingPaymentsScreen(),
+                            ),
+                          );
+                        } else if (notif['type'] == 'group_expense' || notif['type'] == 'invite') {
+                            final groupId = _extractGroupId(notif['message']);
+
+                             if (groupId != null) {
+                              final groups = await SplitService().getGroups();
+                              final matched = groups.where((g) => g.groupId == groupId).toList();
+                              
+                              if (matched.isNotEmpty && context.mounted) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => GroupDetailScreen(group: matched.first),
+                                  ),
+                                );
+                              } else if (context.mounted) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const GroupsScreen()),
+                                );
+                              }
+                            } else {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const GroupsScreen()),
+                              );
+                            }
+                          }
+
+                        setState(() {});
+                      },
+
+
                       child: _notificationItem(notif),
                     ),
                   ),
@@ -148,7 +204,7 @@ class NotificationsPage extends StatefulWidget {
     else if (type == 'income') { icon = Icons.account_balance_wallet_outlined; color = Colors.teal; }
     else if (type == 'expense') { icon = Icons.shopping_cart_outlined; color = Colors.blue; }
     else if (type == 'group_expense') { icon = Icons.group_outlined; color = Colors.blue; }
-    else if (type == 'group_invite') { icon = Icons.person_add_alt_1_outlined; color = Colors.orange; }
+    else if (type == 'group_invite' || type == 'invite') { icon = Icons.person_add_alt_1_outlined; color = Colors.orange; }
     else if (type == 'settlement') { icon = Icons.handshake_outlined; color = Colors.green; }
 
     final bool isUnread = notif['is_read'] == false;
@@ -185,7 +241,9 @@ class NotificationsPage extends StatefulWidget {
                 _getTitleFromType(notif['type'] ?? ''),
                 style: GoogleFonts.karma(fontWeight: FontWeight.bold, fontSize: 16)),
               Text(
-                notif['message'] ?? '', 
+                (notif['message'] ?? '')
+                .replaceAll(RegExp(r'\[gid:\d+\]'), '')
+                .trim(),
                 style: GoogleFonts.karma(fontSize: 14,height: 1.4, color: Colors.black54)),
             ],
           ),
@@ -240,9 +298,9 @@ String _formatTime(String? timestamp) {
   if (type == 'income') return 'Income Added';
   if (type == 'expense') return 'Expense Added';
   if (type == 'group_expense') return 'Group Expense';
-  if (type == 'group_invite') return 'Group Invite';
+  if (type == 'group_invite' || type == 'invite') return 'Group Invite';
   if (type == 'settlement') return 'Settlement Update';
   return 'Notification';
-}
+  }
     
 }

@@ -483,11 +483,9 @@ class _HomeScreenState extends State<HomeScreen> {
               builder: (context) => const AddTransactionScreen(),
             ),
           );
-
-          if (result == true) {
-            _fetchHomeData();
-          }
+         _fetchHomeData();
         },
+      
         backgroundColor: Colors.teal[700],
         elevation: 6,
         shape: const CircleBorder(),
@@ -535,11 +533,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             GestureDetector(
-              onTap: () {
-                Navigator.push(
+              onTap: () async{
+                await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const GroupsScreen()),
                 );
+                _fetchHomeData(); //refresh balance after split settlements
               },
               child: Column(
                 mainAxisSize: MainAxisSize.min,

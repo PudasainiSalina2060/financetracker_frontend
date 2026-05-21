@@ -46,6 +46,23 @@ class TransactionService {
     //load locally stored transactions if API fails
     return await _getLocalTransactions();
   }
+  
+  //fetch transactions for a specific account
+  Future<List<dynamic>> getAccountTransactions(int accountId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/transactions/account/$accountId'),
+        headers: await _getAuthHeaders(),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return [];
+    } catch (error) {
+      print("Failed to load account transactions: $error");
+      return [];
+    }
+  }
 
   //get categories from API and map response to CategoryModel objects
   Future<List<CategoryModel>> fetchCategories() async {

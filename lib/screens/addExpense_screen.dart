@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/group_model.dart';
 import '../services/split_service.dart';
+import 'package:financetracker_frontend/services/user_service.dart';
+import 'package:financetracker_frontend/services/account_service.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   final GroupModel group;
@@ -14,6 +16,8 @@ class AddExpenseScreen extends StatefulWidget {
 
 class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final SplitService _splitService = SplitService();
+  final UserService _userService = UserService();
+  final AccountService _accountService = AccountService();
 
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
@@ -22,6 +26,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   int? _paidByMemberId;
   DateTime _date = DateTime.now();
   bool _isLoading = false;
+  List<dynamic> _myAccounts = []; 
+  int? _selectedAccountId;
+  int? _currentUserMemberId;
 
   //for custom split: tracking amount per member
   Map<int, TextEditingController> _customControllers = {};
@@ -37,7 +44,31 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     for (var member in widget.members) {
       _customControllers[member.memberId] = TextEditingController();
     }
+    _loadAccounts(); 
   }
+
+  Future<void> _loadAccounts() async {
+  try {
+    final currentUserId = await _userService.getUserId();
+    final accounts = await _accountService.getAllAccounts();
+
+    final myMember = widget.members.firstWhere(
+      (m) => m.userId == currentUserId,
+      orElse: () => widget.members.first,
+    );
+
+    setState(() {
+      _myAccounts = accounts;
+      _currentUserMemberId = myMember.memberId;
+      if (accounts.isNotEmpty) {
+        _selectedAccountId = accounts.first['account_id'];
+      }
+    });
+  } catch (e) {
+    print("Load accounts error: $e");
+  }
+}
+
 
   Future<void> _pickDate() async {
     DateTime? picked = await showDatePicker(
@@ -76,6 +107,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select who paid'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_noteController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter an expense name'),
           backgroundColor: Colors.red,
         ),
       );
@@ -130,6 +171,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       date: _date,
       splitType: _splitType,
       customSplits: customSplits,
+      accountId:  _paidByMemberId == _currentUserMemberId ? _selectedAccountId : null,
     );
 
     setState(() => _isLoading = false);
@@ -179,7 +221,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
             const SizedBox(height: 16),
 
-            Text('Note (optional)', style: GoogleFonts.inika(fontSize: 16)),
+            Text('Expense Name', style: GoogleFonts.inika(fontSize: 16)),
             const SizedBox(height: 8),
             _buildTextField(
               controller: _noteController,
@@ -236,7 +278,44 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
             const SizedBox(height: 16),
 
-            // Split type selection
+            // Account dropdown — which account to deduct from
+            // Only show account dropdown if logged-in user is the payer
+            if (_paidByMemberId == _currentUserMemberId) ...[
+              Text('Paid From Account', style: GoogleFonts.inika(fontSize: 16)),
+              const SizedBox(height: 8),
+              if (_myAccounts.isEmpty)
+                Text(
+                  'No accounts found',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.teal[100]!.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: _selectedAccountId,
+                      isExpanded: true,
+                      items: _myAccounts.map<DropdownMenuItem<int>>((account) {
+                        return DropdownMenuItem<int>(
+                          value: account['account_id'],
+                          child: Text(
+                            '${account['name']} — NPR ${double.parse(account['current_balance'].toString()).toStringAsFixed(0)}',
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() => _selectedAccountId = value);
+                      },
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 16),
+            ],     // Split type selection
+
             Text('Split Type', style: GoogleFonts.inika(fontSize: 16)),
             const SizedBox(height: 8),
             Row(

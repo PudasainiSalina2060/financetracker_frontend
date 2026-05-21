@@ -1,4 +1,6 @@
+import 'package:financetracker_frontend/services/user_service.dart';
 import 'package:financetracker_frontend/screens/contact_picker_screen.dart';
+import 'package:financetracker_frontend/screens/pending_payments_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/group_model.dart';
@@ -24,11 +26,20 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   List<GroupExpenseModel> _expenses = [];
   List<GroupMemberModel> _members = [];
   bool _isLoading = true;
+  int? _currentUserId;
+  int _pendingCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadExpenses();
+    _loadData();
+  }
+
+
+  Future<void> _loadData() async {
+    await _loadCurrentUser(); // wait for user first
+    await _loadExpenses();    // then load expenses
+    await _loadPendingCount();
   }
 
   Future<void> _loadExpenses() async {
@@ -45,6 +56,27 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     });
   }
 
+  final UserService _userService = UserService();
+
+  Future<void> _loadCurrentUser() async {
+    try {
+      final userId = await _userService.getUserId();
+      setState(() => _currentUserId = userId);
+    } catch (e) {
+      print("Load user error: $e");
+    }
+  }
+
+  Future<void> _loadPendingCount() async {
+    try {
+      final pending = await _splitService.getPendingPayments();
+      setState(() => _pendingCount = pending.length);
+    } catch (e) {
+      print("Pending count error: $e");
+    }
+  }
+ 
+  
   // Show dialog to add a member using phone number
   void _showAddMemberDialog() {
     _phoneController.clear();
@@ -493,12 +525,58 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           widget.group.name,
           style: GoogleFonts.inika(color: Colors.white, fontSize: 20),
         ),
+
+        
         actions: [
-          //add member button
           IconButton(
-            icon: const Icon(Icons.person_add, color: Colors.white),
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _loadExpenses,
+            tooltip: 'Refresh',
+          ),
+          
+          
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.pending_actions, color: Colors.white),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PendingPaymentsScreen(),
+                    ),
+                  ).then((_) {
+                    _loadExpenses();
+                    _loadPendingCount();
+                  });
+                },
+              ),
+              if (_pendingCount > 0)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '$_pendingCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+      
+        IconButton(
+          icon: const Icon(Icons.person_add, color: Colors.white),
             onPressed: _showAddMemberDialog,
-            tooltip: 'Add Member',
           ),
         ],
       ),
@@ -612,17 +690,64 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   Widget _buildExpenseList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _expenses.length,
-      itemBuilder: (context, index) {
-        return _buildExpenseCard(_expenses[index]);
-      },
+    return RefreshIndicator(
+      color: Colors.teal[600],
+      onRefresh: _loadExpenses, //pull down to refresh
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: _expenses.length,
+        itemBuilder: (context, index) {
+          return _buildExpenseCard(_expenses[index]);
+          },
+      ),
     );
   }
 
   Widget _buildExpenseCard(GroupExpenseModel expense) {
-    return Card(
+    final bool isFullySettled = expense.shares.every((s) => s.isSettled);
+    
+    return Dismissible(
+      key: Key(expense.groupExpenseId.toString()),
+      // Only allow swipe if fully settled
+      direction: isFullySettled
+          ? DismissDirection.endToStart
+          : DismissDirection.none,
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      confirmDismiss: (direction) async {
+        return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Delete Expense', style: GoogleFonts.inika()),
+            content: const Text('Delete this settled expense? This cannot be undone.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Delete', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        ) ?? false;
+      },
+      onDismissed: (direction) async {
+        await _splitService.deleteExpense(expense.groupExpenseId);
+        _loadExpenses();
+      },
+    child :Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 2,
@@ -662,6 +787,27 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                           ),
                         ],
                       ),
+                      if (expense.shares.every((s) => s.isSettled))
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green[50],
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.green[300]!),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.check_circle_outline, size: 11, color: Colors.green[700]),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Fully Settled',
+                                style: TextStyle(fontSize: 11, color: Colors.green[700]),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -676,14 +822,17 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    IconButton(
-                      icon: Icon(Icons.edit_outlined, color: Colors.teal[400], size: 20),
-                      onPressed: () => _showEditExpenseDialog(expense),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.delete_outline, color: Colors.red[300], size: 20),
-                      onPressed: () => _deleteExpense(expense.groupExpenseId),
-                    ),
+                    // Only show edit/delete if expense is NOT fully settled
+                    if (!expense.shares.every((s) => s.isSettled)) ...[
+                      IconButton(
+                        icon: Icon(Icons.edit_outlined, color: Colors.teal[400], size: 20),
+                        onPressed: () => _showEditExpenseDialog(expense),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.delete_outline, color: Colors.red[300], size: 20),
+                        onPressed: () => _deleteExpense(expense.groupExpenseId),
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -696,6 +845,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -704,13 +854,39 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   final bool isPayer = share.memberId == expense.paidByMemberId;
 
   //For Net balance text and color
-  // payer: shows +amount in green (they are owed money)
-  // others: shows -amount in red (they owe money)
-  final String balanceText = isPayer
-      ? '+ NPR ${share.amount.toStringAsFixed(0)}'
-      : '- NPR ${share.amount.toStringAsFixed(0)}';
+  // showing partial payment progress
+  // For payer: net = total paid - own share
+  // For others: shows remaining amount
+  String balanceText;
+  if (isPayer) {
+    // Sum of remaining amounts from all other members
+    final double remainingOwed = expense.shares
+        .where((s) => s.memberId != expense.paidByMemberId)
+        .fold(0.0, (sum, s) => sum + s.remainingAmount);
+    
+    if (remainingOwed > 0) {
+      balanceText = '+ NPR ${remainingOwed.toStringAsFixed(0)} to receive';
+    } else {
+      balanceText = '✓ All Settled';
+    }
+  } else {
+    // show remaining if partially paid
+    if (share.paidAmount > 0 && !share.isSettled) {
+      balanceText = '- NPR ${share.remainingAmount.toStringAsFixed(0)} remaining';
+    } else {
+      balanceText = '- NPR ${share.amount.toStringAsFixed(0)}';
+    }
+  }
 
-  final Color balanceColor = isPayer ? Colors.green[700]! : Colors.red[600]!;
+  final double remainingOwed = isPayer
+    ? expense.shares
+        .where((s) => s.memberId != expense.paidByMemberId)
+        .fold(0.0, (sum, s) => sum + s.remainingAmount)
+    : 0;
+
+  final Color balanceColor = isPayer
+      ? (remainingOwed > 0 ? Colors.orange[700]! : Colors.green[700]!)
+      : Colors.red[600]!;
 
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 6.0),
@@ -739,7 +915,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               // Show "owes [payer name]" only for non-payers who haven't settled
               if (!isPayer && !share.isSettled)
                 Text(
-                  'owes ${expense.paidByName.split(' ')[0]}',
+                  share.paidAmount > 0
+                    ? 'paid NPR ${share.paidAmount.toStringAsFixed(0)}, owes NPR ${share.remainingAmount.toStringAsFixed(0)} more'
+                    :'owes ${expense.paidByName.split(' ')[0]}',
                   style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                 ),
             ],
@@ -790,6 +968,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           // for non payer who hasn't settled yet
           GestureDetector(
             onTap: () {
+              // Simple check: if current user is the payer of this expense
+              final myMemberList = _currentUserId != null
+              ? _members.where((m) => m.userId != null && m.userId == _currentUserId).toList()
+              : <GroupMemberModel>[];
+        
+              final bool isCreditor = myMemberList.isNotEmpty && 
+                  myMemberList.first.memberId == expense.paidByMemberId;
+
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -797,6 +983,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     share: share,
                     groupId: widget.group.groupId,
                     paidByMemberId: expense.paidByName,
+                    isCreditor: isCreditor,
+                    creditorMemberId: expense.paidByMemberId,
+
                   ),
                 ),
               ).then((_) => _loadExpenses());

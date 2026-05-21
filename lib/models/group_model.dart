@@ -28,11 +28,14 @@ class GroupMemberModel {
   final int groupId;
   //name derived from either registered user or external member
   final String name;
+  final int? userId;  //(null for external members)
+
 
   GroupMemberModel({
     required this.memberId,
     required this.groupId,
     required this.name,
+    this.userId,  
   });
 
   factory GroupMemberModel.fromJson(Map<String, dynamic> json) {
@@ -48,6 +51,7 @@ class GroupMemberModel {
       memberId: json['member_id'],
       groupId: json['group_id'],
       name: memberName,
+      userId: json['user_id'],
     );
   }
 }

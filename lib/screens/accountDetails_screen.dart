@@ -50,10 +50,10 @@ class _EditAccountPageState extends State<EditAccountPage> {
 //fetch all transaction and then filter for specific account
 Future<void> _loadAccountTransactions() async {
     try {
-      final allTrans = await _transactionService.getAllTransactions();
+      final data = await _transactionService.getAccountTransactions(widget.accountId);
       setState(() {
         // Only keep transactions that match this specific account's Id
-        displayList = allTrans.where((t) => t.accountId == widget.accountId).toList();
+        displayList = data;
       });
     } catch (error) {
       print("Failed to load transactions: $error");
@@ -189,20 +189,103 @@ Future<void> _loadAccountTransactions() async {
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: displayList.isEmpty
-              ? const Center(child: Text("No transactions for this account yet."))
-              :Column(
-                children: displayList.map((t) {
-                  //Format the amount: add "+" for income, "-" for expense
-                  String sign = t.type == 'income' ? "+" : "-";
-                  return _transactionItem(
-                    "${t.categoryName} - ${t.notes}",
-                    "$sign NPR ${t.amount}",
-                    "${t.date.day}/${t.date.month}",
-                    Icons.receipt_long,
-                    isIncome: t.type == 'income',
-                  );
-                }).toList(),
-              ),
+                ? const Center(child: Text("No transactions for this account yet."))
+                : Column(
+                  children: displayList.map((t) {
+                    final String notes = t['notes'] ?? '';
+                    final String type = t['type'] ?? 'expense';
+                    final String categoryName = t['category']?['name'] ?? 'Unknown';
+                    final double amount = double.tryParse(t['amount'].toString()) ?? 0;
+                    final DateTime date = DateTime.parse(t['date']);
+
+                    final bool isGroupExp = notes.contains('[gexp:');
+                    final bool isSettlement = notes.contains('[settle:');
+                    final bool isLocked = isGroupExp || isSettlement;
+
+                    final String cleanNote = notes
+                        .replaceAll(RegExp(r'\[gexp:\d+\]'), '')
+                        .replaceAll(RegExp(r'\[settle:\d+\]'), '')
+                        .trim();
+
+                    final String sign = type == 'income' ? "+" : "-";
+
+                    final String subtitle = isGroupExp
+                        ? '${date.day}/${date.month} • Group Expense'
+                        : isSettlement
+                            ? '${date.day}/${date.month} • Settlement'
+                            : '${date.day}/${date.month}';
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 15),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isLocked ? Colors.teal[50] : Colors.grey[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: isLocked ? Border.all(color: Colors.teal[200]!) : null,
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: isLocked
+                                ? Colors.teal[100]
+                                : const Color(0xFF009688).withOpacity(0.1),
+                            child: Icon(
+                              isGroupExp
+                                  ? Icons.groups_outlined
+                                  : isSettlement
+                                      ? Icons.handshake_outlined
+                                      : Icons.receipt_long,
+                              color: const Color(0xFF009688),
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        isLocked ? cleanNote : '$categoryName - $cleanNote',
+                                        style: GoogleFonts.karma(fontWeight: FontWeight.bold),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  subtitle,
+                                  style: GoogleFonts.karma(color: Colors.grey, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '$sign NPR ${amount.toStringAsFixed(0)}',
+                                style: GoogleFonts.karma(
+                                  fontWeight: FontWeight.bold,
+                                  color: type == 'income' ? Colors.green : Colors.red,
+                                ),
+                              ),
+
+                              if (isLocked)
+                                Icon(
+                                  Icons.lock_outline,
+                                  size: 12,
+                                  color: Colors.teal[400],
+                                ),
+                            ],
+                          ),
+                                                  ],
+                      ),
+                    );
+                  }).toList(),
+                ),
             ),
 
             // For save changes button
@@ -211,6 +294,32 @@ Future<void> _loadAccountTransactions() async {
               child: InkWell( 
                 onTap: () async {
                   double? balance = double.tryParse(_balanceController.text);
+
+                  // Warn if user tries to set account balance to 0
+                  if (balance == 0) {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text('Set Balance to 0?', style: GoogleFonts.karma(fontWeight: FontWeight.bold)),
+                        content: Text(
+                          'This will set your account balance to NPR 0. This will override your current balance. Are you sure?',
+                          style: GoogleFonts.karma(),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: Text('Cancel', style: TextStyle(color: Colors.grey[600])),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal[600]),
+                            child: const Text('Yes, Set to 0', style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm != true) return; // User cancelled
+                  }
 
                   bool success = await _accountService.updateAccount(
                     widget.accountId,

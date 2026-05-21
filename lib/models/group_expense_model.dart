@@ -51,6 +51,8 @@ class SplitShareModel {
   final int groupExpenseId;
   final int memberId;
   final double amount;
+  final double paidAmount; 
+   final double remainingAmount; 
   final bool isSettled;
   final String memberName;
 
@@ -59,6 +61,8 @@ class SplitShareModel {
     required this.groupExpenseId,
     required this.memberId,
     required this.amount,
+    required this.paidAmount, 
+    required this.remainingAmount,
     required this.isSettled,
     required this.memberName,
   });
@@ -79,6 +83,8 @@ class SplitShareModel {
       groupExpenseId: json['group_expense_id'],
       memberId: json['member_id'],
       amount: double.parse(json['amount'].toString()),
+      paidAmount: double.parse((json['paid_amount'] ?? 0).toString()),
+      remainingAmount: double.parse((json['remaining_amount'] ?? json['amount']).toString()),
       isSettled: json['is_settled'] ?? false,
       memberName: name,
     );
