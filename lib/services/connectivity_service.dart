@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'sync_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'split_service.dart';
 
 //checks internet and syncs when connection is back
 class ConnectivityService {
@@ -47,6 +48,10 @@ class ConnectivityService {
       //pre-cache categories
       final categoryService = CategoryService();
       await categoryService.getAllCategories(token);
+
+      // pre-cache groups so they show offline
+      final splitService = SplitService();
+      await splitService.getGroups();
 
       // try sync: if token expired, refresh and retry once
       final success = await SyncService.syncToServer(token);

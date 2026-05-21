@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/group_model.dart';
 import '../models/group_expense_model.dart';
+import 'package:sqflite/sqflite.dart';
+import '../database/local_db.dart';
 
 class SplitService {
   final String baseUrl = 'http://10.0.2.2:3000';
@@ -38,16 +40,21 @@ class SplitService {
       final response = await http.get(
         Uri.parse('$baseUrl/api/split/groups'),
         headers: await _getAuthHeaders(),
-      );
+      ).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         List<dynamic> data = jsonDecode(response.body);
-        return data.map((json) => GroupModel.fromJson(json)).toList();
+        final groups =  data.map((json) => GroupModel.fromJson(json)).toList();
+
+        // save to SQLite for offline use
+        await _cacheGroups(groups);
+        return groups;
       }
       return [];
     } catch (error) {
       print("Get groups error: $error");
-      return [];
+      // offline → load from SQLite
+      return await _getLocalGroups();
     }
   }
 
@@ -312,5 +319,68 @@ class SplitService {
       print("Get pending payments error: $e");
       return [];
     }
+  }
+  // save groups to SQLite cache
+Future<void> _cacheGroups(List<GroupModel> groups) async {
+  final db = await LocalDB.database;
+
+  // clear old data first
+  await db.delete('groups');
+  await db.delete('group_members');
+
+  for (var group in groups) {
+    // save group
+    await db.insert('groups', {
+      'group_id':   group.groupId,
+      'user_id':    0,
+      'name':       group.name,
+      'created_at': group.createdAt.toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+    // save each member with their name
+    for (var member in group.members) {
+      await db.insert('group_members', {
+        'member_id': member.memberId,
+        'group_id':  group.groupId,
+        'user_id':   member.userId ?? 0,
+        'name':      member.name,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+  }
+  print('Groups cached: ${groups.length}');
+}
+
+// load groups from SQLite when offline
+Future<List<GroupModel>> _getLocalGroups() async {
+  final db = await LocalDB.database;
+  final groupRows = await db.query('groups');
+  print('Groups from SQLite: ${groupRows.length}');
+
+  List<GroupModel> groups = [];
+
+  for (var g in groupRows) {
+    // get members for this group
+    final memberRows = await db.query(
+      'group_members',
+      where: 'group_id = ?',
+      whereArgs: [g['group_id']],
+    );
+
+    final members = memberRows.map((m) => GroupMemberModel(
+      memberId: m['member_id'] as int,
+      groupId:  g['group_id'] as int,
+      name:     m['name']?.toString() ?? 'Unknown',
+      userId:   (m['user_id'] as int?) == 0 ? null : m['user_id'] as int?,
+    )).toList();
+
+    groups.add(GroupModel(
+      groupId:   g['group_id'] as int,
+      name:      g['name']?.toString() ?? '',
+      createdAt: DateTime.parse(g['created_at']?.toString() ?? DateTime.now().toIso8601String()),
+      members:   members,
+    ));
+  }
+
+  return groups;
   }
 }

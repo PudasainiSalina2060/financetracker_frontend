@@ -109,6 +109,8 @@ class LocalDB {
         group_id             INTEGER NOT NULL,
         user_id              INTEGER,
         external_contact_id  INTEGER,
+        name                 TEXT DEFAULT "",
+        phone                TEXT DEFAULT "",
         joined_at            TEXT
       )
     ''');
