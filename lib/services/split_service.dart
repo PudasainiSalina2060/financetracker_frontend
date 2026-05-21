@@ -111,16 +111,21 @@ class SplitService {
       final response = await http.get(
         Uri.parse('$baseUrl/api/split/groups/$groupId/expenses'),
         headers: await _getAuthHeaders(),
-      );
+      ).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         List<dynamic> data = jsonDecode(response.body);
-        return data.map((json) => GroupExpenseModel.fromJson(json)).toList();
+        final expenses = data.map((json) => GroupExpenseModel.fromJson(json)).toList();
+
+        // cache expenses to SQLite for offline use
+        await _cacheExpenses(groupId, expenses);
+        return expenses;
       }
       return [];
     } catch (error) {
       print("Get expenses error: $error");
-      return [];
+       // offline : load from SQLite
+      return await _getLocalExpenses(groupId);
     }
   }
 
@@ -190,7 +195,8 @@ class SplitService {
       final response = await http.get(
         Uri.parse('$baseUrl/api/split/groups/$groupId/members'),
         headers: await _getAuthHeaders(),
-      );
+      ).timeout(const Duration(seconds: 5));
+
       if (response.statusCode == 200) {
         List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => GroupMemberModel.fromJson(json)).toList();
@@ -198,7 +204,8 @@ class SplitService {
       return [];
     } catch (error) {
       print("Get members error: $error");
-      return [];
+      // offline → load members from SQLite
+      return await _getLocalMembers(groupId);
     }
   }
 
@@ -382,5 +389,122 @@ Future<List<GroupModel>> _getLocalGroups() async {
   }
 
   return groups;
+  }
+  // save expenses to SQLite
+Future<void> _cacheExpenses(int groupId, List<GroupExpenseModel> expenses) async {
+  final db = await LocalDB.database;
+
+  await db.delete('group_expenses', where: 'group_id = ?', whereArgs: [groupId]);
+
+  for (var expense in expenses) {
+    await db.insert('group_expenses', {
+      'group_expense_id':  expense.groupExpenseId,
+      'group_id':          groupId,
+      'paid_by_member_id': expense.paidByMemberId,
+      'amount':            expense.amount,
+      'note':              expense.note,
+      'date':              expense.date.toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+    for (var share in expense.shares) {
+      await db.insert('split_shares', {
+        'share_id':         share.shareId,
+        'group_expense_id': expense.groupExpenseId,
+        'member_id':        share.memberId,
+        'amount':           share.amount,
+        'is_settled':       share.isSettled ? 1 : 0,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+  }
+  print('Expenses cached: ${expenses.length} for group $groupId');
+}
+
+// load expenses from SQLite when offline
+Future<List<GroupExpenseModel>> _getLocalExpenses(int groupId) async {
+  final db = await LocalDB.database;
+
+  final expenseRows = await db.query(
+    'group_expenses',
+    where: 'group_id = ?',
+    whereArgs: [groupId],
+    orderBy: 'date DESC',
+  );
+
+  print('Expenses from SQLite: ${expenseRows.length}');
+
+  List<GroupExpenseModel> expenses = [];
+
+  for (var e in expenseRows) {
+    // get payer name
+    final payerRows = await db.query(
+      'group_members',
+      where: 'member_id = ?',
+      whereArgs: [e['paid_by_member_id']],
+    );
+    final payerName = payerRows.isNotEmpty
+        ? payerRows.first['name']?.toString() ?? 'Unknown'
+        : 'Unknown';
+
+    // get shares and member names in one step (no final reassignment)
+    final shareRows = await db.query(
+      'split_shares',
+      where: 'group_expense_id = ?',
+      whereArgs: [e['group_expense_id']],
+    );
+
+    final shares = await Future.wait(shareRows.map((s) async {
+      // get member name for each share
+      final memberRows = await db.query(
+        'group_members',
+        where: 'member_id = ?',
+        whereArgs: [s['member_id']],
+      );
+      final memberName = memberRows.isNotEmpty
+          ? memberRows.first['name']?.toString() ?? 'Unknown'
+          : 'Unknown';
+
+      return SplitShareModel(
+        shareId:         s['share_id'] as int,
+        groupExpenseId:  e['group_expense_id'] as int,
+        memberId:        s['member_id'] as int,
+        memberName:      memberName,  // set at creation, no reassignment
+        amount:          (s['amount'] as num).toDouble(),
+        paidAmount:      0,
+        remainingAmount: (s['amount'] as num).toDouble(),
+        isSettled:       s['is_settled'] == 1,
+      );
+    }));
+
+    expenses.add(GroupExpenseModel(
+      groupExpenseId:  e['group_expense_id'] as int,
+      groupId:         e['group_id'] as int,
+      paidByMemberId:  e['paid_by_member_id'] as int,
+      paidByName:      payerName,
+      amount:          (e['amount'] as num).toDouble(),
+      note:            e['note']?.toString() ?? '',
+      date:            DateTime.parse(e['date']?.toString() ?? DateTime.now().toIso8601String()),
+      shares:          shares,
+    ));
+  }
+
+  return expenses;
+}
+// load members from SQLite when offline
+Future<List<GroupMemberModel>> _getLocalMembers(int groupId) async {
+  final db = await LocalDB.database;
+  final rows = await db.query(
+    'group_members',
+    where: 'group_id = ?',
+    whereArgs: [groupId],
+  );
+
+  print('Members from SQLite: ${rows.length}');
+
+  return rows.map((m) => GroupMemberModel(
+    memberId: m['member_id'] as int,
+    groupId:  groupId,
+    name:     m['name']?.toString() ?? 'Unknown',
+    userId:   (m['user_id'] as int?) == 0 ? null : m['user_id'] as int?,
+  )).toList();
   }
 }
