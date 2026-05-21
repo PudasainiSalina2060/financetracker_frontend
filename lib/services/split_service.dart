@@ -5,6 +5,7 @@ import '../models/group_model.dart';
 import '../models/group_expense_model.dart';
 import 'package:sqflite/sqflite.dart';
 import '../database/local_db.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SplitService {
   final String baseUrl = 'http://10.0.2.2:3000';
@@ -26,12 +27,46 @@ class SplitService {
         Uri.parse('$baseUrl/api/split/groups/create'),
         headers: await _getAuthHeaders(),
         body: jsonEncode({'name': name}),
-      );
+      ).timeout(const Duration(seconds: 5));
+
       return response.statusCode == 201;
     } catch (error) {
-      print("Create group error: $error");
-      return false;
-    }
+      // offline : save locally with temp negative ID
+      print("Offline: saving group locally");
+      final db = await LocalDB.database;
+      final now = DateTime.now().toIso8601String();
+      final tempId = -(DateTime.now().millisecondsSinceEpoch);
+
+      await db.insert('groups', {
+        'group_id':   tempId,
+        'user_id':    0,
+        'name':       name,
+        'created_at': now,
+      });
+      // add creator as first member with temp member ID
+      final tempMemberId = -(DateTime.now().millisecondsSinceEpoch + 1);
+      final prefs = await SharedPreferences.getInstance();
+      final myName = prefs.getString('userName') ?? 'Me';
+
+      await db.insert('group_members', {
+        'member_id': tempMemberId,
+        'group_id':  tempId,
+        'user_id':   0,
+        'name':      myName,
+      });
+
+      // log for sync
+      await db.insert('sync_log', {
+        'table_name':   'groups',
+        'record_id':    tempId,
+        'operation':    'insert',
+        'is_synced':    0,
+        'last_updated': now,
+      });
+
+      print('Group saved offline with temp id: $tempId');
+      return true;
+      }
   }
 
   // Fetch all groups for the user
@@ -331,9 +366,9 @@ class SplitService {
 Future<void> _cacheGroups(List<GroupModel> groups) async {
   final db = await LocalDB.database;
 
-  // clear old data first
-  await db.delete('groups');
-  await db.delete('group_members');
+  // only delete real groups : old data (positive IDs) keep temp offline groups (negative IDs)
+  await db.delete('groups', where: 'group_id > 0');
+  await db.delete('group_members', where: 'group_id > 0');
 
   for (var group in groups) {
     // save group

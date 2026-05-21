@@ -180,6 +180,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                     await prefs.setString('accessToken', result['accessToken']);
                                     print("Token SAVED SUCCESSFULLY: ${result['accessToken']}");
                                   }
+                                  // save user name for offline use
+                                  if (result['user'] != null && result['user']['name'] != null) {
+                                    await prefs.setString('userName', result['user']['name']);
+                                  }
 
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
