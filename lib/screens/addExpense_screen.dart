@@ -91,6 +91,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   Future<void> _submitExpense() async {
+
+     // block expense if group is not synced yet (temp negative ID)
+    if (widget.group.groupId < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connect to internet to add expenses to this group'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
     double? amount = double.tryParse(_amountController.text.trim());
 
     if (amount == null || amount <= 0) {

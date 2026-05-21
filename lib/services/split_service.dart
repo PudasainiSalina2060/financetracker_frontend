@@ -132,11 +132,80 @@ class SplitService {
           'custom_splits': customSplits,
           'account_id': accountId,
         }),
-      );
+      ).timeout(const Duration(seconds: 5));
       return response.statusCode == 201;
     } catch (error) {
-      print("Add expense error: $error");
-      return false;
+      print("Offline: saving expense locally");
+      final db = await LocalDB.database;
+      final now = DateTime.now().toIso8601String();
+      final tempExpenseId = -(DateTime.now().millisecondsSinceEpoch);
+
+      // save expense locally
+      await db.insert('group_expenses', {
+        'group_expense_id':  tempExpenseId,
+        'group_id':          groupId,
+        'paid_by_member_id': paidByMemberId,
+        'amount':            amount,
+        'note':              note,
+        'date':              date.toIso8601String(),
+      });
+
+      // get members to calculate shares
+      final memberRows = await db.query(
+        'group_members',
+        where: 'group_id = ?',
+        whereArgs: [groupId],
+      );
+
+      // save split shares
+      if (splitType == 'equal' && memberRows.isNotEmpty) {
+        final shareAmount = amount / memberRows.length;
+        for (var member in memberRows) {
+          final memberId = member['member_id'] as int;
+          final isPayer = memberId == paidByMemberId;
+          await db.insert('split_shares', {
+            'share_id':         -(DateTime.now().millisecondsSinceEpoch + memberId),
+            'group_expense_id': tempExpenseId,
+            'member_id':        memberId,
+            'amount':           shareAmount,
+            'is_settled':       isPayer ? 1 : 0,
+          });
+        }
+      } else if (splitType == 'custom' && customSplits != null) {
+        for (var split in customSplits) {
+          final memberId = split['member_id'] as int;
+          final isPayer = memberId == paidByMemberId;
+          await db.insert('split_shares', {
+            'share_id':         -(DateTime.now().millisecondsSinceEpoch + memberId),
+            'group_expense_id': tempExpenseId,
+            'member_id':        memberId,
+            'amount':           split['amount'],
+            'is_settled':       isPayer ? 1 : 0,
+          });
+        }
+      }
+
+      // deduct from account balance locally
+      if (accountId != null) {
+        await db.rawUpdate('''
+          UPDATE accounts
+          SET current_balance = current_balance - ?
+          WHERE account_id = ?
+        ''', [amount, accountId]);
+        print('Account balance deducted locally: $amount');
+      }
+
+      // log for sync
+      await db.insert('sync_log', {
+        'table_name':   'group_expenses',
+        'record_id':    tempExpenseId,
+        'operation':    'insert',
+        'is_synced':    0,
+        'last_updated': now,
+      });
+
+      print('Expense saved offline with temp id: $tempExpenseId');
+      return true;
     }
   }
 
