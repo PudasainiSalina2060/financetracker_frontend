@@ -461,7 +461,14 @@ Future<void> _cacheGroups(List<GroupModel> groups) async {
 
   // only delete real groups : old data (positive IDs) keep temp offline groups (negative IDs)
   await db.delete('groups', where: 'group_id > 0');
+
+  // delete real members from real groups
   await db.delete('group_members', where: 'group_id > 0 AND member_id > 0');
+
+  //delete local placeholder of group creator member after successful group sync
+  await db.delete('group_members',
+    where: 'group_id > 0 AND member_id < 0 AND user_id = 0 AND (phone IS NULL OR phone = "")',
+  );
 
   for (var group in groups) {
     // save group
