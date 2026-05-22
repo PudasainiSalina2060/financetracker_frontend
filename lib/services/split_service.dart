@@ -88,7 +88,7 @@ class SplitService {
       return [];
     } catch (error) {
       print("Get groups error: $error");
-      // offline → load from SQLite
+      // offline : load from SQLite
       return await _getLocalGroups();
     }
   }
@@ -100,12 +100,36 @@ class SplitService {
         Uri.parse('$baseUrl/api/split/groups/$groupId/members'),
         headers: await _getAuthHeaders(),
         body: jsonEncode({'phone': phone, 'name': name}),
-      );
+      ).timeout(const Duration(seconds: 5));
+
       return response.statusCode == 201;
     } catch (error) {
-      print("Add member error: $error");
-      return false;
-    }
+      // offline : save locally with temp ID
+      print("Offline: saving member locally");
+      final db = await LocalDB.database;
+      final now = DateTime.now().toIso8601String();
+      final tempMemberId = -(DateTime.now().millisecondsSinceEpoch);
+
+      await db.insert('group_members', {
+        'member_id': tempMemberId,
+        'group_id':  groupId,
+        'user_id':   0,
+        'name':      name.isNotEmpty ? name : phone,
+        'phone':     phone,
+      });
+
+      // log for sync : backend will check if registered or external
+      await db.insert('sync_log', {
+        'table_name':   'group_members',
+        'record_id':    tempMemberId,
+        'operation':    'insert',
+        'is_synced':    0,
+        'last_updated': now,
+      });
+
+      print('Member saved offline: $name ($phone)');
+      return true;
+      }
   }
 
   // Add a new expense to a group
@@ -308,7 +332,7 @@ class SplitService {
       return [];
     } catch (error) {
       print("Get members error: $error");
-      // offline → load members from SQLite
+      // offline : load members from SQLite
       return await _getLocalMembers(groupId);
     }
   }
@@ -437,7 +461,7 @@ Future<void> _cacheGroups(List<GroupModel> groups) async {
 
   // only delete real groups : old data (positive IDs) keep temp offline groups (negative IDs)
   await db.delete('groups', where: 'group_id > 0');
-  await db.delete('group_members', where: 'group_id > 0');
+  await db.delete('group_members', where: 'group_id > 0 AND member_id > 0');
 
   for (var group in groups) {
     // save group

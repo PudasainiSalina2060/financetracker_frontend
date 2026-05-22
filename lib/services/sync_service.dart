@@ -308,6 +308,40 @@ class SyncService {
             }
           }
         }
+        
+        // if offline group synced -> update temp group_id in members
+        if (tableName == 'groups' && operation != 'delete') {
+          final responseData = jsonDecode(response.body);
+          final newGroupId = responseData['new_group_id'];
+
+          if (newGroupId != null) {
+            final db = await LocalDB.database;
+
+            // update group_members: replace old temp group_id with real group_id
+            final updated = await db.update(
+              'group_members',
+              {'group_id': newGroupId},
+              where: 'group_id = ?',
+              whereArgs: [recordId],
+            );
+
+            if (updated > 0) {
+              print('Updated $updated members: temp group_id $recordId → real group_id $newGroupId');
+
+              // mark those members unsynced so they sync again with real group_id
+              await db.rawUpdate('''
+                UPDATE sync_log SET is_synced = 0
+                WHERE table_name = 'group_members'
+                AND record_id IN (
+                  SELECT member_id FROM group_members WHERE group_id = ?
+                )
+              ''', [newGroupId]);
+
+              print('Members marked for re-sync with real group_id');
+            }
+          }
+        }
+
         return true;
         } else {
           print('Server error: ${response.statusCode}');
